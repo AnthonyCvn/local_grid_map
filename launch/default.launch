@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="map_frame_id"        	default="/map0" />
+  <arg name="image_topic"   		default="/camera0/camera_capture/camera/image" />
+  <arg name="publish_rate"          	default="1" />
+
+  <!-- Launch local_grid_map node -->
+  <node pkg="local_grid_map" type="local_grid_map" name="local_grid_map" output="screen">
+
+    <!-- ROS parameters -->
+    <param name="map_frame_id"      value="$(arg map_frame_id)" />
+    <param name="image_topic"       value="$(arg image_topic)" />
+    <param name="publish_rate"      value="$(arg publish_rate)" />
+  </node>
+
+</launch>
