@@ -8,7 +8,7 @@ Create a local grid map based on stereo images.
 
 ### License
 
-The source code is released under a [BSD 3-Clause license](https://github.com/AnthonyCvn/...).
+The source code is released under a [BSD 3-Clause license](https://github.com/AnthonyCvn/local_grid_map/blob/master/LICENSE).
 
 **Author: Anthony Cavin**
 
