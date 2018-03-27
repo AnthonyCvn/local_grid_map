@@ -8,7 +8,7 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
     : nodeHandle_(nodeHandle),
       it_(nodeHandle),
       sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("theora", ros::TransportHints().unreliable())),
-      sub_img_right_(it_, imageTopicR, 1, image_transport::TransportHints("theora", ros::TransportHints().unreliable())),
+      sub_img_right_(it_, imageTopicR, 1),
       sync_(SyncPolicy(10), sub_img_right_, sub_img_left_),
 	    map_(grid_map::GridMap({"original", "elevation"})),
 	    mapInitialized_(false)
@@ -49,15 +49,39 @@ LocalGridMap::~LocalGridMap()
 }
 
 bool LocalGridMap::readParameters()
-{
-  if (nodeHandle_.getParam("map_frame_id", mapFrameId_) 	      &&
-      nodeHandle_.getParam("image_topic_right", imageTopicR_) 	&&
-      nodeHandle_.getParam("image_topic_left", imageTopicL_)    &&
-      nodeHandle_.getParam("publish_rate", publishRate_)	      &&
-      nodeHandle_.getParam("resolution", resolution_)			      &&
-      nodeHandle_.getParam("min_height", minHeight_)			      &&
-      nodeHandle_.getParam("max_height", maxHeight_)) return true;
-  return false;
+{ // Read ROS parameters
+  if (!(nodeHandle_.getParam("map_frame_id", mapFrameId_) 	      &&
+        nodeHandle_.getParam("image_topic_right", imageTopicR_) 	&&
+        nodeHandle_.getParam("image_topic_left", imageTopicL_)    &&
+        nodeHandle_.getParam("publish_rate", publishRate_)	      &&
+        nodeHandle_.getParam("calib_file_path", calib_file_path_) &&
+        nodeHandle_.getParam("resolution", resolution_)			      &&
+        nodeHandle_.getParam("min_height", minHeight_)			      &&
+        nodeHandle_.getParam("max_height", maxHeight_))) return false;
+
+
+
+  // Read camera parameters
+  std::string filename = calib_file_path_;
+
+  cv::FileStorage calib_file(filename, cv::FileStorage::READ);
+  calib_file.open(filename, cv::FileStorage::READ);
+
+  if(!(calib_file.isOpened()))
+    return false;
+
+  calib_file["K1"] >> K1_;
+  calib_file["K2"] >> K2_;
+  calib_file["D1"] >> D1_;
+  calib_file["D2"] >> D2_;
+  calib_file["R"] >> R_;
+  calib_file["T"] >> T_;
+  calib_file["XR"] >> XR_;
+  calib_file["XT"] >> XT_;
+
+  calib_file.release();
+
+  return true;
 }
 
 void LocalGridMap::timerCallback(const ros::TimerEvent& event)
@@ -95,7 +119,7 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
 
   //cv::Mat img_left, img_right, img_left_color;
 
-  // TODO Remaping with camera parameters (from calibration file)
+  // TODO Remaping with camera parameters (from calibration file) => image rectification process
   //cv::remap(tmpL, img_left, lmapx, lmapy, cv::INTER_LINEAR);
   //cv::remap(tmpR, img_right, rmapx, rmapy, cv::INTER_LINEAR);
 
@@ -111,10 +135,10 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
     const cv::Mat dmap = generateDisparityMap(tmpL, tmpR);
 
 
-    imshow("DISP", dmap);
-    imshow("LEFT", tmpL);
-    imshow("RIGHT", tmpR);
-    cv::waitKey(30);
+//    imshow("DISP", dmap);
+//    //imshow("LEFT", tmpL);
+//    //imshow("RIGHT", tmpR);
+//    cv::waitKey(30);
 
   if (!mapInitialized_) {
     //grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
@@ -205,9 +229,11 @@ cv::Mat LocalGridMap::generateDisparityMap(cv::Mat& left, cv::Mat& right){
     if (rightdpf.data[i]>disp_max) disp_max = rightdpf.data[i];
   }
 
-  cv::Mat show = cv::Mat(imsize, CV_8UC1, cv::Scalar(0));
+  cv::Mat dmap = cv::Mat(imsize, CV_8UC1, cv::Scalar(0));
 
-  cv::normalize(leftdpf, show, 0, 255, cv::NORM_MINMAX, CV_8U);
+  cv::normalize(leftdpf, dmap, 0, 255, cv::NORM_MINMAX, CV_8U);
+
+  cv::resize(dmap, dmap, cv::Size(imsize.width/2, imsize.height/2), 0, 0, cv::INTER_AREA);// Or cv::INTER_CUBIC
 
   //leftdpf.convertTo(show, CV_8U, 1.);
   //cv::imshow("leftdpf",leftdpf);
@@ -219,7 +245,7 @@ cv::Mat LocalGridMap::generateDisparityMap(cv::Mat& left, cv::Mat& right){
 
   //imshow("FLOAT", leftdpf);
 
-  return show;
+  return dmap;
 }
 
 } /* namespace */

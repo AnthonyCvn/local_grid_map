@@ -100,11 +100,6 @@ class LocalGridMap
   //! Is parameters well read.
 //  bool isParamRead_;
 
-  //! Image topic to subscribe.
-  std::string imageTopicL_;
-  std::string imageTopicR_;
-
-
 
   //! Image transport subscriber
   //image_transport::Subscriber imageSubscriber_;
@@ -135,7 +130,9 @@ class LocalGridMap
   //! ROS server parameters; Frame identification.
   std::string mapFrameId_;
 
-
+  //! Image topic to subscribe.
+  std::string imageTopicL_;
+  std::string imageTopicR_;
 
   //! ROS server parameters; Publish rate.
   int publishRate_;
@@ -147,8 +144,17 @@ class LocalGridMap
   double minHeight_;
   double maxHeight_;
 
-  //! Initialiyed logic.
+  //! Initialized logic.
   bool mapInitialized_;
+
+  //! Path of file storage with camera parameters.
+  std::string calib_file_path_;
+
+  //! Camera parameters._
+  cv::Mat XR_, XT_, Q_, P1_, P2_;
+  cv::Mat R1_, R2_, K1_, K2_, D1_, D2_, R_;
+  cv::Mat lmapx_, lmapy_, rmapx_, rmapy_;
+  cv::Vec3d T_;
 
 };
 
