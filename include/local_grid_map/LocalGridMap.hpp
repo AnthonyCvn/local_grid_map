@@ -1,14 +1,36 @@
 #pragma once
 
+// Package algorithm
 #include "local_grid_map/Algorithm.hpp"
+
+// STD
+#include <iostream>
+#include <string>
+#include <cstdint>
 
 // ROS
 #include <ros/ros.h>
-#include <sensor_msgs/Temperature.h>
 #include <std_srvs/Trigger.h>
-#include <image_transport/image_transport.h>
 
+// Image transport
+#include <image_transport/image_transport.h>
+#include <image_transport/subscriber_filter.h>
+#include <message_filters/sync_policies/approximate_time.h>
+
+// Grid map
+#include <grid_map_cv/grid_map_cv.hpp>
+#include <grid_map_ros/grid_map_ros.hpp>
+
+// OpenCv and ROS bridge
 #include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <cv_bridge/cv_bridge.h>
+
+// LIBELAS (Library for Efficient Large-scale Stereo Matching)
+#include "elas.h"
+
+// Eigen (Linear algebra)
+#include "Eigen/Eigen"
 
 namespace local_grid_map {
 
@@ -55,13 +77,36 @@ class LocalGridMap
    * ROS service server callback.
    * @param msg theora left image topic.
    */
-  void imageCallback(const sensor_msgs::ImageConstPtr& msg);
+  void imageCallback(const sensor_msgs::ImageConstPtr& msg_left, const sensor_msgs::ImageConstPtr& msg_right);
+
+
+  /*!
+   * Generate disparity map.
+   * @param left stereo image.
+   * @param right stereo image.
+   */
+  cv::Mat generateDisparityMap(cv::Mat& left, cv::Mat& right);
 
   //! ROS node handle.
   ros::NodeHandle& nodeHandle_;
 
-  //! Left image transport subscriber
+  //! Grid map publisher.
+  ros::Publisher gridMapPublisher_;
+
+  //! Grid map data.
+  grid_map::GridMap map_;
+
+  //! Image transport subscriber
   image_transport::Subscriber imageSubscriber_;
+
+
+  image_transport::ImageTransport it_;
+
+  image_transport::SubscriberFilter sub_img_left_;
+  image_transport::SubscriberFilter sub_img_right_;
+
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> SyncPolicy;
+  message_filters::Synchronizer< SyncPolicy > sync_;
 
   //! ROS service server.
   ros::ServiceServer serviceServer_;
@@ -81,11 +126,24 @@ class LocalGridMap
   //! ROS server parameters; Frame identification.
   std::string mapFrameId_;
 
-  //! ROS server parameters; left image topic.
-  std::string imageTopic_;
+
 
   //! ROS server parameters; Publish rate.
   int publishRate_;
+
+  //! Resolution of the grid map.
+  double resolution_;
+
+  //! Image topic to subscribe.
+  std::string imageTopicR_;
+  std::string imageTopicL_;
+
+  //! Range of the cell's value.
+  double minHeight_;
+  double maxHeight_;
+
+  //! Initialiyed logic.
+  bool mapInitialized_;
 };
 
 } /* namespace */

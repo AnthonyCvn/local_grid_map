@@ -29,6 +29,19 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+find_package(OpenCV REQUIRED)
+set(INC_DIR ./include)
+set(LIBELAS_SRC_DIR src/elas)
+set(CMAKE_CXX_FLAGS "-msse3")
+set(Boost_USE_STATIC_LIBS OFF) 
+set(Boost_USE_MULTITHREADED ON)  
+set(Boost_USE_STATIC_RUNTIME OFF) 
+find_package(Boost 1.54.0 COMPONENTS system filesystem program_options REQUIRED)
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
+
+FILE(GLOB LIBELAS_SRC_FILES "src/elas/*.cpp")
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -118,9 +131,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES local_grid_map
-  CATKIN_DEPENDS compressed_image_transport cv_bridge image_transport roscpp sensor_msgs std_msgs theora_image_transport   
-  		 grid_map_core grid_map_ros grid_map_cv grid_map_filters grid_map_loader grid_map_msgs grid_map_octomap
-  		 grid_map_rviz_plugin grid_map_visualization
+  CATKIN_DEPENDS compressed_image_transport cv_bridge image_transport roscpp sensor_msgs std_msgs theora_image_transport grid_map_core grid_map_ros grid_map_cv grid_map_filters grid_map_loader grid_map_msgs grid_map_octomap grid_map_rviz_plugin grid_map_visualization
 # DEPENDS system_lib
 )
 
@@ -133,6 +144,11 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIR}
+  ${OpenCV_INCLUDE_DIRS}
+  ${LIBELAS_SRC_DIR}
+  ${Boost_INCLUDE_DIRS}
+  ${INC_DIR}
 )
 
 ## Declare a C++ library
@@ -144,6 +160,7 @@ add_library(${PROJECT_NAME}_core
 add_executable(${PROJECT_NAME}
   src/${PROJECT_NAME}_node.cpp
   src/LocalGridMap.cpp
+  ${LIBELAS_SRC_FILES}
 )
 
 ## Add dependencies to exported targets, like ROS msgs or srvs

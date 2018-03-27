@@ -1,0 +1,151 @@
+//////////
+//////////  Image transport with synchroni
+//////////
+class MyClass {
+public:
+  MyClass() :
+    it_(nh_),
+#if USE_IMAGE_TRANSPORT_SUBSCRIBER_FILTER
+    orig_image_sub_( it_, "image/orig", 1 ),
+    warp_image_sub_( it_, "image/warp", 1 ),
+#else
+    orig_image_sub_( nh_, "image/orig", 1 ),
+    warp_image_sub_( nh_, "image/warp", 1 ),
+#endif
+    sync( MySyncPolicy( 10 ), orig_image_sub_, warp_image_sub_ )
+  {
+    sync.registerCallback( boost::bind( &MyClass::callback, this, _1, _2 ) );
+  }
+
+  void callback(
+    const sensor_msgs::ImageConstPtr& orig_msg,
+    const sensor_msgs::ImageConstPtr& warp_msg
+  ){
+    // your code here
+  }
+
+private:
+  ros::NodeHandle nh_;
+  image_transport::ImageTransport it_;
+
+#if USE_IMAGE_TRANSPORT_SUBSCRIBER_FILTER
+  typedef image_transport::SubscriberFilter ImageSubscriber;
+#else
+  typedef message_filters::Subscriber< sensor_msgs::Image > ImageSubscriber;
+#endif
+
+  ImageSubscriber orig_image_sub_;
+  ImageSubscriber warp_image_sub_;
+
+  typedef message_filters::sync_policies::ApproximateTime<
+    sensor_msgs::Image, sensor_msgs::Image
+  > MySyncPolicy;
+
+  message_filters::Synchronizer< MySyncPolicy > sync;
+};
+
+int main(int argc, char** argv) {
+  ros::init( argc, argv, "my_node" );
+  MyClass mc;
+
+  while( ros::ok() ){
+    ros::spin();
+  }
+
+  return EXIT_SUCCESS;
+}
+
+//////////
+//////////   Disparity map with LIBELAS  
+//////////
+
+Mat generateDisparityMap(Mat& left, Mat& right) {
+  if (left.empty() || right.empty()) 
+    return left;
+  const Size imsize = left.size();
+  const int32_t dims[3] = {imsize.width, imsize.height, imsize.width};
+  Mat leftdpf = Mat::zeros(imsize, CV_32F);
+  Mat rightdpf = Mat::zeros(imsize, CV_32F);
+
+  Elas::parameters param(Elas::MIDDLEBURY);
+  param.postprocess_only_left = true;
+  Elas elas(param);
+  elas.process(left.data, right.data, leftdpf.ptr<float>(0), rightdpf.ptr<float>(0), dims);
+  Mat dmap = Mat(out_img_size, CV_8UC1, Scalar(0));
+  leftdpf.convertTo(dmap, CV_8U, 1.);
+  return dmap;
+}
+
+//////////
+//////////   Disparities of pgm image input pair file_1, file_2 
+//////////
+void process (const char* file_1,const char* file_2) {
+
+  cout << "Processing: " << file_1 << ", " << file_2 << endl;
+
+  // load images
+  image<uchar> *I1,*I2;
+  I1 = loadPGM(file_1);
+  I2 = loadPGM(file_2);
+
+  // check for correct size
+  if (I1->width()<=0 || I1->height() <=0 || I2->width()<=0 || I2->height() <=0 ||
+      I1->width()!=I2->width() || I1->height()!=I2->height()) {
+    cout << "ERROR: Images must be of same size, but" << endl;
+    cout << "       I1: " << I1->width() <<  " x " << I1->height() << 
+                 ", I2: " << I2->width() <<  " x " << I2->height() << endl;
+    delete I1;
+    delete I2;
+    return;    
+  }
+
+  // get image width and height
+  int32_t width  = I1->width();
+  int32_t height = I1->height();
+
+  // allocate memory for disparity images
+  const int32_t dims[3] = {width,height,width}; // bytes per line = width
+  float* D1_data = (float*)malloc(width*height*sizeof(float));
+  float* D2_data = (float*)malloc(width*height*sizeof(float));
+
+  // process
+  Elas::parameters param;
+  param.postprocess_only_left = false;
+  Elas elas(param);
+  elas.process(I1->data,I2->data,D1_data,D2_data,dims);
+
+  // find maximum disparity for scaling output disparity images to [0..255]
+  float disp_max = 0;
+  for (int32_t i=0; i<width*height; i++) {
+    if (D1_data[i]>disp_max) disp_max = D1_data[i];
+    if (D2_data[i]>disp_max) disp_max = D2_data[i];
+  }
+
+  // copy float to uchar
+  image<uchar> *D1 = new image<uchar>(width,height);
+  image<uchar> *D2 = new image<uchar>(width,height);
+  for (int32_t i=0; i<width*height; i++) {
+    D1->data[i] = (uint8_t)max(255.0*D1_data[i]/disp_max,0.0);
+    D2->data[i] = (uint8_t)max(255.0*D2_data[i]/disp_max,0.0);
+  }
+
+  // save disparity images
+  char output_1[1024];
+  char output_2[1024];
+  strncpy(output_1,file_1,strlen(file_1)-4);
+  strncpy(output_2,file_2,strlen(file_2)-4);
+  output_1[strlen(file_1)-4] = '\0';
+  output_2[strlen(file_2)-4] = '\0';
+  strcat(output_1,"_disp.pgm");
+  strcat(output_2,"_disp.pgm");
+  savePGM(D1,output_1);
+  savePGM(D2,output_2);
+
+  // free memory
+  delete I1;
+  delete I2;
+  delete D1;
+  delete D2;
+  free(D1_data);
+  free(D2_data);
+}
