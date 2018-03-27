@@ -1,13 +1,15 @@
 #include "local_grid_map/LocalGridMap.hpp"
 
+
+
 namespace local_grid_map {
 
-LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle)
+LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL, std::string imageTopicR)
     : nodeHandle_(nodeHandle),
       it_(nodeHandle),
-      sub_img_left_(it_, "/camera0/camera_capture/stereo/left/image", 1),
-      sub_img_right_(it_, "/camera0/camera_capture/stereo/right/image", 1),
-      sync_(SyncPolicy( 10 ), sub_img_right_, sub_img_left_),
+      sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("theora", ros::TransportHints().unreliable())),
+      sub_img_right_(it_, imageTopicR, 1, image_transport::TransportHints("theora", ros::TransportHints().unreliable())),
+      sync_(SyncPolicy(10), sub_img_right_, sub_img_left_),
 	    map_(grid_map::GridMap({"original", "elevation"})),
 	    mapInitialized_(false)
 {
@@ -16,7 +18,7 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle)
     ros::requestShutdown();
   }
 
-  // Launch the ImageTransport subscriber.
+  // Launch the ImageTransport subscriber for a single topic.
   /*
   imageSubscriber_ = it_.subscribe(imageTopicL_, 1,
 		  	  	  	  	  	  	  	   &LocalGridMap::imageCallback, this ,
@@ -25,21 +27,8 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle)
    */
 
 
-  //image_transport::SubscriberFilter sub_img_left_(it_, imageTopicL_, 1);
-  //image_transport::SubscriberFilter sub_img_right_(it_, imageTopicR_, 1);
-  //message_filters::Synchronizer< SyncPolicy > sync_(SyncPolicy( 10 ), sub_img_left_, sub_img_right_);
-
-
+  // Synchronize images topic.
   sync_.registerCallback( boost::bind(&LocalGridMap::imageCallback, this, _1, _2 ) );
-
-
-
-  //message_filters::Subscriber<sensor_msgs::Image> sub_img_left(nodeHandle, imageTopicL_, 1);
-  //message_filters::Subscriber<sensor_msgs::Image> sub_img_right(nodeHandle, imageTopicR_, 1);
-
-  //message_filters::TimeSynchronizer<sensor_msgs::Image, sensor_msgs::Image> sync(sub_img_left, sub_img_right, 10);
-  //sync.registerCallback(boost::bind(&LocalGridMap::imageCallback, _1, _2));
-
 
   // Launch the GridMap publisher
   gridMapPublisher_ = nodeHandle_.advertise<grid_map_msgs::GridMap>("grid_map", 1, true);
@@ -62,7 +51,7 @@ LocalGridMap::~LocalGridMap()
 bool LocalGridMap::readParameters()
 {
   if (nodeHandle_.getParam("map_frame_id", mapFrameId_) 	      &&
-      nodeHandle_.getParam("image_topic_right", imageTopicR_) 		&&
+      nodeHandle_.getParam("image_topic_right", imageTopicR_) 	&&
       nodeHandle_.getParam("image_topic_left", imageTopicL_)    &&
       nodeHandle_.getParam("publish_rate", publishRate_)	      &&
       nodeHandle_.getParam("resolution", resolution_)			      &&
@@ -125,23 +114,15 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
     imshow("DISP", dmap);
     imshow("LEFT", tmpL);
     imshow("RIGHT", tmpR);
-    cv::resizeWindow("DISP", tmpL.size().width << 1, tmpL.size().height << 1);
-    cv::resizeWindow("LEFT", tmpL.size().width << 1, tmpL.size().height << 1);
-    cv::resizeWindow("RIGHT", tmpL.size().width << 1, tmpL.size().height << 1);
     cv::waitKey(30);
 
-
+  if (!mapInitialized_) {
+    //grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
     //grid_map::GridMapCvConverter::initializeFromImage(dmap,resolution_ ,map_);
     const double lengthX = resolution_ * dmap.rows;
     const double lengthY = resolution_ * dmap.cols;
     grid_map::Length length(lengthX, lengthY);
     map_.setGeometry(length, resolution_);
-  //}
-
-
-  /*
-  if (!mapInitialized_) {
-    //grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
 
     // Grid map settings.
     map_.setFrameId(mapFrameId_);
@@ -161,7 +142,7 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
   grid_map::GridMapRosConverter::toMessage(map_, message);
   gridMapPublisher_.publish(message);
 
-  */
+
 
 
 }

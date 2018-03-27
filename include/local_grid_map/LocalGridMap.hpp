@@ -44,7 +44,7 @@ class LocalGridMap
    * Constructor.
    * @param nodeHandle the ROS node handle.
    */
-  LocalGridMap(ros::NodeHandle& nodeHandle);
+  LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL, std::string imageTopicR);
 
   /*!
    * Destructor.
@@ -96,9 +96,18 @@ class LocalGridMap
   //! Grid map data.
   grid_map::GridMap map_;
 
-  //! Image transport subscriber
-  image_transport::Subscriber imageSubscriber_;
 
+  //! Is parameters well read.
+//  bool isParamRead_;
+
+  //! Image topic to subscribe.
+  std::string imageTopicL_;
+  std::string imageTopicR_;
+
+
+
+  //! Image transport subscriber
+  //image_transport::Subscriber imageSubscriber_;
 
   image_transport::ImageTransport it_;
 
@@ -134,16 +143,13 @@ class LocalGridMap
   //! Resolution of the grid map.
   double resolution_;
 
-  //! Image topic to subscribe.
-  std::string imageTopicR_;
-  std::string imageTopicL_;
-
   //! Range of the cell's value.
   double minHeight_;
   double maxHeight_;
 
   //! Initialiyed logic.
   bool mapInitialized_;
+
 };
 
 } /* namespace */

@@ -8,7 +8,12 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "local_grid_map");
   ros::NodeHandle nodeHandle("~");
 
-  local_grid_map::LocalGridMap LocalGridMap(nodeHandle);
+  std::string imageTopicL, imageTopicR;
+
+  nodeHandle.getParam("image_topic_left", imageTopicL);
+  nodeHandle.getParam("image_topic_right",imageTopicR);
+
+  local_grid_map::LocalGridMap LocalGridMap(nodeHandle, imageTopicL, imageTopicR);
 
   ros::spin();
 
