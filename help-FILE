@@ -198,7 +198,9 @@ int main(int argc, char** argv) {
   int c;
   while((c = popt.getNextOpt()) >= 0) {}
   
+  // Size of the image used for stereo calibration.
   calib_img_size = Size(calib_width, calib_height);
+  // Size Undistorted image size.
   out_img_size = Size(out_width, out_height);
   
   calib_file = FileStorage(calib_file_name, FileStorage::READ);

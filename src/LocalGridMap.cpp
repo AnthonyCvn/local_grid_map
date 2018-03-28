@@ -1,7 +1,5 @@
 #include "local_grid_map/LocalGridMap.hpp"
 
-
-
 namespace local_grid_map {
 
 LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL, std::string imageTopicR)
@@ -30,7 +28,10 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
   // Synchronize images topic.
   sync_.registerCallback( boost::bind(&LocalGridMap::imageCallback, this, _1, _2 ) );
 
-  // Launch the GridMap publisher
+  // Launch the point cloud publisher.
+  pointCloud_pub_ = nodeHandle_.advertise<sensor_msgs::PointCloud>("/camera/left/point_cloud",1);
+
+  // Launch the GridMap publisher.
   gridMapPublisher_ = nodeHandle_.advertise<grid_map_msgs::GridMap>("grid_map", 1, true);
 
   // Launch the ROS service.
@@ -59,29 +60,8 @@ bool LocalGridMap::readParameters()
         nodeHandle_.getParam("min_height", minHeight_)			      &&
         nodeHandle_.getParam("max_height", maxHeight_))) return false;
 
-
-
-  // Read camera parameters
-  std::string filename = calib_file_path_;
-
-  cv::FileStorage calib_file(filename, cv::FileStorage::READ);
-  calib_file.open(filename, cv::FileStorage::READ);
-
-  if(!(calib_file.isOpened()))
-    return false;
-
-  calib_file["K1"] >> K1_;
-  calib_file["K2"] >> K2_;
-  calib_file["D1"] >> D1_;
-  calib_file["D2"] >> D2_;
-  calib_file["R"] >> R_;
-  calib_file["T"] >> T_;
-  calib_file["XR"] >> XR_;
-  calib_file["XT"] >> XT_;
-
-  calib_file.release();
-
-  return true;
+  // Load camera parameters
+  return algorithm_.loadCameraParameters(calib_file_path_);
 }
 
 void LocalGridMap::timerCallback(const ros::TimerEvent& event)
@@ -99,50 +79,43 @@ bool LocalGridMap::serviceCallback(std_srvs::Trigger::Request& request,
 
 void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, const sensor_msgs::ImageConstPtr& msg_right)
 {
-  //ROS_INFO("0");
   // Compute disparity map
-  cv::Mat tmpL, tmpR, tmp;
-  cv::Mat lmapx, lmapy, rmapx, rmapy;
+  cv::Mat img_left, img_right, img_left_color;
+  cv::Mat tmpL = cv_bridge::toCvShare(msg_left, "mono8")->image;
+  cv::Mat tmpR = cv_bridge::toCvShare(msg_right, "mono8")->image;
+  cv::Size image_size_calib = cv::Size(tmpL.size().height, tmpL.size().width);
+  cv::Size image_size_out = cv::Size(tmpL.size().height, tmpL.size().width);
 
-  tmpL = cv_bridge::toCvShare(msg_left, "mono8")->image;
-  tmpR = cv_bridge::toCvShare(msg_right, "mono8")->image;
-
-  //tmpL = cv_bridge::toCvShare(msg_left, "mono8")->image;
-  //tmpR = cv_bridge::toCvShare(msg_right, "mono8")->image;
-
-  if (tmpL.empty())
+  if (tmpL.empty() || tmpR.empty())
     return;
 
-  //tmpL = tmp(cv::Rect(0, 0, tmp.cols / 2, tmp.rows));
-  //tmpR = tmp(cv::Rect(tmp.cols /2, 0, tmp.cols / 2, tmp.rows));
+  if (!mapInitialized_){
+      algorithm_.setIOImageSize(image_size_calib, image_size_out);
+      algorithm_.findRectificationMap();
+  }
+
+  algorithm_.remapImage(tmpL, img_left, Algorithm::LEFT);
+  algorithm_.remapImage(tmpR, img_right, Algorithm::RIGHT);
+
+  cv::Mat dmap = algorithm_.generateDisparityMap(tmpL, tmpR);
 
 
-  //cv::Mat img_left, img_right, img_left_color;
+  cvtColor(img_left, img_left_color, CV_GRAY2BGR);
+  sensor_msgs::PointCloud pc;
+  pc = algorithm_.processPointCloud(img_left_color, dmap);
 
-  // TODO Remaping with camera parameters (from calibration file) => image rectification process
-  //cv::remap(tmpL, img_left, lmapx, lmapy, cv::INTER_LINEAR);
-  //cv::remap(tmpR, img_right, rmapx, rmapy, cv::INTER_LINEAR);
+  pointCloud_pub_.publish(pc);
 
-  //img_left = tmpL;
-  //img_right =tmpR;
-
-  //cvtColor(img_left, img_left_color, CV_GRAY2BGR);
-
-  //static int i = 0;
-  //i++;
-  //if(i>10){
-    //i=0;
-    const cv::Mat dmap = generateDisparityMap(tmpL, tmpR);
-
-
-//    imshow("DISP", dmap);
-//    //imshow("LEFT", tmpL);
-//    //imshow("RIGHT", tmpR);
-//    cv::waitKey(30);
+  imshow("DISP", dmap);
+//  imshow("LEFT", tmpL);
+//  imshow("RIGHT", tmpR);
+  cv::waitKey(30);
 
   if (!mapInitialized_) {
     //grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
-    //grid_map::GridMapCvConverter::initializeFromImage(dmap,resolution_ ,map_);
+
+
+//    //grid_map::GridMapCvConverter::initializeFromImage(dmap,resolution_ ,map_);
     const double lengthX = resolution_ * dmap.rows;
     const double lengthY = resolution_ * dmap.cols;
     grid_map::Length length(lengthX, lengthY);
@@ -166,86 +139,7 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
   grid_map::GridMapRosConverter::toMessage(map_, message);
   gridMapPublisher_.publish(message);
 
-
-
-
 }
 
-cv::Mat LocalGridMap::generateDisparityMap(cv::Mat& left, cv::Mat& right){
-
-  //int out_width = left.cols;
-  //int out_height = left.rows;
-  //cv::Size out_img_size = cv::Size(out_width, out_height);;
-
-  //imshow("LEFT", left);
-  //imshow("RIGHT", right);
-
-  if (left.empty() || right.empty())
-    return left;
-  const cv::Size imsize = left.size();
-  const int32_t dims[3] = {imsize.width,imsize.height,imsize.width};
-  cv::Mat leftdpf = cv::Mat::zeros(imsize, CV_32F);
-  cv::Mat rightdpf = cv::Mat::zeros(imsize, CV_32F);
-
-  Elas::parameters param(Elas::MIDDLEBURY);
-
-/*(Elas::ROBOTICS)
-  param.disp_min              = 0;
-  param.disp_max              = 255;
-  param.support_threshold     = 0.85;
-  param.support_texture       = 10;
-  param.candidate_stepsize    = 5;
-  param.incon_window_size     = 5;
-  param.incon_threshold       = 5;
-  param.incon_min_support     = 5;
-  param.add_corners           = 0;
-  param.grid_size             = 20;
-  param.beta                  = 0.02;
-  param.gamma                 = 3;
-  param.sigma                 = 1;
-  param.sradius               = 2;
-  param.match_texture         = 1;
-  param.lr_threshold          = 2;
-  param.speckle_sim_threshold = 1;
-  param.speckle_size          = 200;
-  param.ipol_gap_width        = 3;
-  param.filter_median         = 0;
-  param.filter_adaptive_mean  = 1;
-  param.postprocess_only_left = 1;
-  param.subsampling           = 0;
-
-*/
-
-  param.postprocess_only_left = true;
-
-  Elas elas(param);
-
-  elas.process(left.data,right.data,leftdpf.ptr<float>(0), rightdpf.ptr<float>(0),dims);
-
-  // find maximum disparity for scaling output disparity images to [0..255]
-  float disp_max = 0;
-  for (int32_t i=0; i<imsize.width*imsize.height; i++) {
-    if (leftdpf.data[i]>disp_max) disp_max = leftdpf.data[i];
-    if (rightdpf.data[i]>disp_max) disp_max = rightdpf.data[i];
-  }
-
-  cv::Mat dmap = cv::Mat(imsize, CV_8UC1, cv::Scalar(0));
-
-  cv::normalize(leftdpf, dmap, 0, 255, cv::NORM_MINMAX, CV_8U);
-
-  cv::resize(dmap, dmap, cv::Size(imsize.width/2, imsize.height/2), 0, 0, cv::INTER_AREA);// Or cv::INTER_CUBIC
-
-  //leftdpf.convertTo(show, CV_8U, 1.);
-  //cv::imshow("leftdpf",leftdpf);
-
-  // copy float to uchar
-  //for (int32_t i=0; i<imsize.width*imsize.height; i++) {
-    //show.data[i] = (uint8_t)std::max(255.0*leftdpf.data[i]/disp_max,0.0);
-  //}
-
-  //imshow("FLOAT", leftdpf);
-
-  return dmap;
-}
 
 } /* namespace */

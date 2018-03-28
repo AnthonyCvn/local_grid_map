@@ -28,7 +28,7 @@
     <rosparam command="load" file="$(find local_grid_map)/config/image_to_gridmap_demo.yaml" />
   </node>
 -->
-  <!-- Launch RViz with the demo configuration 
+  <!-- Launch RViz with the demo configuration
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find local_grid_map)/rviz/grid_map_demo.rviz" />
--->
+ -->
 </launch>

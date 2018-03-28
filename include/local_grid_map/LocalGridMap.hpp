@@ -12,6 +12,11 @@
 #include <ros/ros.h>
 #include <std_srvs/Trigger.h>
 
+// ROS messages
+#include <sensor_msgs/PointCloud.h>
+#include <sensor_msgs/ChannelFloat32.h>
+#include <geometry_msgs/Point32.h>
+
 // Image transport
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
@@ -79,19 +84,14 @@ class LocalGridMap
    */
   void imageCallback(const sensor_msgs::ImageConstPtr& msg_left, const sensor_msgs::ImageConstPtr& msg_right);
 
-
-  /*!
-   * Generate disparity map.
-   * @param left stereo image.
-   * @param right stereo image.
-   */
-  cv::Mat generateDisparityMap(cv::Mat& left, cv::Mat& right);
-
   //! ROS node handle.
   ros::NodeHandle& nodeHandle_;
 
   //! Grid map publisher.
   ros::Publisher gridMapPublisher_;
+
+  //! Point cloud publisher.
+  ros::Publisher pointCloud_pub_;
 
   //! Grid map data.
   grid_map::GridMap map_;
@@ -149,12 +149,6 @@ class LocalGridMap
 
   //! Path of file storage with camera parameters.
   std::string calib_file_path_;
-
-  //! Camera parameters._
-  cv::Mat XR_, XT_, Q_, P1_, P2_;
-  cv::Mat R1_, R2_, K1_, K2_, D1_, D2_, R_;
-  cv::Mat lmapx_, lmapy_, rmapx_, rmapy_;
-  cv::Vec3d T_;
 
 };
 
