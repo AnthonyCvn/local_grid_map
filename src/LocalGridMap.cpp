@@ -16,6 +16,7 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
     ros::requestShutdown();
   }
 
+
   // Launch the ImageTransport subscriber for a single topic.
   /*
   imageSubscriber_ = it_.subscribe(imageTopicL_, 1,
@@ -83,8 +84,11 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
   cv::Mat img_left, img_right, img_left_color;
   cv::Mat tmpL = cv_bridge::toCvShare(msg_left, "mono8")->image;
   cv::Mat tmpR = cv_bridge::toCvShare(msg_right, "mono8")->image;
-  cv::Size image_size_calib = cv::Size(tmpL.size().height, tmpL.size().width);
-  cv::Size image_size_out = cv::Size(tmpL.size().height, tmpL.size().width);
+
+  cv::Size image_size_calib = cv::Size(tmpL.size().width, tmpL.size().height);
+  cv::Size image_size_out = cv::Size(tmpL.size().width, tmpL.size().height);
+
+
 
   if (tmpL.empty() || tmpR.empty())
     return;
@@ -92,12 +96,13 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
   if (!mapInitialized_){
       algorithm_.setIOImageSize(image_size_calib, image_size_out);
       algorithm_.findRectificationMap();
+      mapInitialized_ = true;
   }
 
   algorithm_.remapImage(tmpL, img_left, Algorithm::LEFT);
   algorithm_.remapImage(tmpR, img_right, Algorithm::RIGHT);
 
-  cv::Mat dmap = algorithm_.generateDisparityMap(tmpL, tmpR);
+  cv::Mat dmap = algorithm_.generateDisparityMap(img_left, img_right);
 
 
   cvtColor(img_left, img_left_color, CV_GRAY2BGR);
@@ -107,37 +112,40 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
   pointCloud_pub_.publish(pc);
 
   imshow("DISP", dmap);
-//  imshow("LEFT", tmpL);
-//  imshow("RIGHT", tmpR);
+  imshow("LEFT", tmpL);
+  imshow("RECT-LEFT", img_left);
+  imshow("RECT-LEFT-COLOR", img_left_color);
+  imshow("RIGHT", tmpR);
+  imshow("RECT-RIGHT", img_right);
   cv::waitKey(30);
 
-  if (!mapInitialized_) {
-    //grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
-
-
-//    //grid_map::GridMapCvConverter::initializeFromImage(dmap,resolution_ ,map_);
-    const double lengthX = resolution_ * dmap.rows;
-    const double lengthY = resolution_ * dmap.cols;
-    grid_map::Length length(lengthX, lengthY);
-    map_.setGeometry(length, resolution_);
-
-    // Grid map settings.
-    map_.setFrameId(mapFrameId_);
-    //map_.setGeometry(grid_map::Length(720, 2560), resolution_);
-    ROS_INFO("Initialized map with size %f x %f m (%i x %i cells).", map_.getLength().x(),
-         map_.getLength().y(), map_.getSize()(0), map_.getSize()(1));
-
-    mapInitialized_ = true;
-  }
-
-
-  grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 3>(dmap, "elevation", map_, minHeight_, maxHeight_);
-  grid_map::GridMapCvConverter::addColorLayerFromImage<unsigned char, 3>(dmap, "color", map_);
-
-  // Publish grid map.
-  grid_map_msgs::GridMap message;
-  grid_map::GridMapRosConverter::toMessage(map_, message);
-  gridMapPublisher_.publish(message);
+//  if (!mapInitialized_) {
+//    //grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
+//
+//
+////    //grid_map::GridMapCvConverter::initializeFromImage(dmap,resolution_ ,map_);
+//    const double lengthX = resolution_ * dmap.rows;
+//    const double lengthY = resolution_ * dmap.cols;
+//    grid_map::Length length(lengthX, lengthY);
+//    map_.setGeometry(length, resolution_);
+//
+//    // Grid map settings.
+//    map_.setFrameId(mapFrameId_);
+//    //map_.setGeometry(grid_map::Length(720, 2560), resolution_);
+//    ROS_INFO("Initialized map with size %f x %f m (%i x %i cells).", map_.getLength().x(),
+//         map_.getLength().y(), map_.getSize()(0), map_.getSize()(1));
+//
+//    mapInitialized_ = true;
+//  }
+//
+//
+//  grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 3>(dmap, "elevation", map_, minHeight_, maxHeight_);
+//  grid_map::GridMapCvConverter::addColorLayerFromImage<unsigned char, 3>(dmap, "color", map_);
+//
+//  // Publish grid map.
+//  grid_map_msgs::GridMap message;
+//  grid_map::GridMapRosConverter::toMessage(map_, message);
+//  gridMapPublisher_.publish(message);
 
 }
 

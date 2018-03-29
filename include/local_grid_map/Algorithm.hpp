@@ -172,7 +172,7 @@ class Algorithm
   CamSettings camsettings_;
 
   //! Camera parameters._
-  cv::Mat XR_, XT_, Q_, P1_, P2_;
+  cv::Mat Q_, P1_, P2_;
   cv::Mat R1_, R2_, K1_, K2_, D1_, D2_, R_;
   cv::Mat lmapx_, lmapy_, rmapx_, rmapy_;
   cv::Vec3d T_;

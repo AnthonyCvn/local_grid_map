@@ -30,7 +30,7 @@ cv::Mat Algorithm::generateDisparityMap(cv::Mat& left, cv::Mat& right){
   cv::Mat leftdpf = cv::Mat::zeros(imsize, CV_32F);
   cv::Mat rightdpf = cv::Mat::zeros(imsize, CV_32F);
 
-  Elas::parameters param(Elas::MIDDLEBURY);
+  Elas::parameters param(Elas::ROBOTICS);
 
 /*(Elas::ROBOTICS)
   param.disp_min              = 0;
@@ -65,26 +65,32 @@ cv::Mat Algorithm::generateDisparityMap(cv::Mat& left, cv::Mat& right){
 
   elas.process(left.data,right.data,leftdpf.ptr<float>(0), rightdpf.ptr<float>(0),dims);
 
-  // find maximum disparity for scaling output disparity images to [0..255]
-  float disp_max = 0;
-  for (int32_t i=0; i<imsize.width*imsize.height; i++) {
-    if (leftdpf.data[i]>disp_max) disp_max = leftdpf.data[i];
-    if (rightdpf.data[i]>disp_max) disp_max = rightdpf.data[i];
-  }
+  cv::Mat dmap = cv::Mat(out_img_size_, CV_8UC1, cv::Scalar(0));
+  leftdpf.convertTo(dmap, CV_8U, 1.);
 
-  cv::Mat dmap = cv::Mat(imsize, CV_8UC1, cv::Scalar(0));
+//  // find maximum disparity for scaling output disparity images to [0..255]
+//  float disp_max = 0;
+//  for (int32_t i=0; i<imsize.width*imsize.height; i++) {
+//    if (leftdpf.data[i]>disp_max) disp_max = leftdpf.data[i];
+//    if (rightdpf.data[i]>disp_max) disp_max = rightdpf.data[i];
+//  }
+//
+//  cv::Mat dmap = cv::Mat(imsize, CV_8UC1, cv::Scalar(0));
+//
+//  cv::normalize(leftdpf, dmap, 0, 255, cv::NORM_MINMAX, CV_8U);
 
-  cv::normalize(leftdpf, dmap, 0, 255, cv::NORM_MINMAX, CV_8U);
 
-  cv::resize(dmap, dmap, cv::Size(imsize.width/2, imsize.height/2), 0, 0, cv::INTER_AREA);// Or cv::INTER_CUBIC
 
-  //leftdpf.convertTo(show, CV_8U, 1.);
-  //cv::imshow("leftdpf",leftdpf);
+  //cv::resize(dmap, dmap, cv::Size(imsize.width/2, imsize.height/2), 0, 0, cv::INTER_AREA);// Or cv::INTER_CUBIC
 
-  // copy float to uchar
-  //for (int32_t i=0; i<imsize.width*imsize.height; i++) {
-    //show.data[i] = (uint8_t)std::max(255.0*leftdpf.data[i]/disp_max,0.0);
-  //}
+
+//  leftdpf.convertTo(dmap, CV_8U, 1.);
+//  cv::imshow("leftdpf",leftdpf);
+//
+//   copy float to uchar
+//  for (int32_t i=0; i<imsize.width*imsize.height; i++) {
+//    dmap.data[i] = (uint8_t)std::max(255.0*leftdpf.data[i]/disp_max,0.0);
+//  }
 
   //imshow("FLOAT", leftdpf);
 
@@ -104,8 +110,6 @@ bool Algorithm::loadCameraParameters(std::string filename){
   calib_file["D2"] >> D2_;
   calib_file["R"]  >> R_;
   calib_file["T"]  >> T_;
-  calib_file["XR"] >> XR_;
-  calib_file["XT"] >> XT_;
 
   calib_file.release();
 
@@ -150,7 +154,7 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
   sensor_msgs::ChannelFloat32 ch;
 
   ch.name = "rgb";
-  pc.header.frame_id = "world";
+  pc.header.frame_id = "camera_1";
   pc.header.stamp = ros::Time::now();
 
   for (int i = 0; i < img.cols; i++){
@@ -179,7 +183,8 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
       point3d_cam.at<double>(1,0) = Y;
       point3d_cam.at<double>(2,0) = Z;
 
-      //
+      // cv::Mat point3d_robot = XR_ * point3d_cam + XT_;
+
       points.push_back(cv::Point3d(point3d_cam));
       geometry_msgs::Point32 pt;
       pt.x = point3d_cam.at<double>(0,0);
@@ -192,14 +197,11 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
       blue = img.at<cv::Vec3b>(j,i)[0];
       int32_t rgb = (red << 16 | green << 8 | blue);
       ch.values.push_back(*reinterpret_cast<float*>(&rgb));
-
     }
   }
   pc.channels.push_back(ch);
   return pc;
 }
-
-
 
 void Algorithm::setCamSettings(const CamSettings cam_settings){
   camsettings_ = cam_settings;
