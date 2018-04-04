@@ -53,10 +53,13 @@ LocalGridMap::~LocalGridMap()
 bool LocalGridMap::readParameters()
 { // Read ROS parameters
   if (!(nodeHandle_.getParam("map_frame_id", mapFrameId_) 	      &&
+        nodeHandle_.getParam("cam_frame_id", camFrameId_)         &&
         nodeHandle_.getParam("image_topic_right", imageTopicR_) 	&&
         nodeHandle_.getParam("image_topic_left", imageTopicL_)    &&
         nodeHandle_.getParam("publish_rate", publishRate_)	      &&
         nodeHandle_.getParam("calib_file_path", calib_file_path_) &&
+        nodeHandle_.getParam("map_length_x", mapLengthX_)         &&
+        nodeHandle_.getParam("map_length_y", mapLengthY_)         &&
         nodeHandle_.getParam("resolution", resolution_)			      &&
         nodeHandle_.getParam("min_height", minHeight_)			      &&
         nodeHandle_.getParam("max_height", maxHeight_))) return false;
@@ -80,13 +83,15 @@ bool LocalGridMap::serviceCallback(std_srvs::Trigger::Request& request,
 
 void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, const sensor_msgs::ImageConstPtr& msg_right)
 {
+  static const int ncells = mapLengthX_*mapLengthY_/(resolution_*resolution_);
   // Compute disparity map
   cv::Mat img_left, img_right, img_left_color;
   cv::Mat tmpL = cv_bridge::toCvShare(msg_left, "mono8")->image;
   cv::Mat tmpR = cv_bridge::toCvShare(msg_right, "mono8")->image;
 
   cv::Size image_size_calib = cv::Size(tmpL.size().width, tmpL.size().height);
-  cv::Size image_size_out = cv::Size(tmpL.size().width, tmpL.size().height);
+
+  cv::Size image_size_out = cv::Size(tmpL.size().width/3, tmpL.size().height/3);
 
 
 
@@ -106,29 +111,33 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
 
   cvtColor(img_left, img_left_color, CV_GRAY2BGR);
   sensor_msgs::PointCloud pc;
-  pc = algorithm_.processPointCloud(img_left_color, dmap);
+  pc = algorithm_.processPointCloud(img_left_color, dmap, ncells);
 
   pointCloud_pub_.publish(pc);
 
-    imshow("DISP", dmap);
+//  imshow("DISP", dmap);
 //  imshow("LEFT", tmpL);
 //  imshow("RECT-LEFT", img_left);
 //  imshow("RECT-LEFT-COLOR", img_left_color);
 //  imshow("RIGHT", tmpR);
 //  imshow("RECT-RIGHT", img_right);
-    cv::waitKey(30);
+//  cv::waitKey(30);
 
   if (!mapInitialized_) {
-    //grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
 
-    //grid_map::GridMapCvConverter::initializeFromImage(dmap,resolution_ ,map_);
-    const double lengthX = resolution_ * dmap.rows;
-    const double lengthY = resolution_ * dmap.cols;
-    grid_map::Length length(lengthX, lengthY);
+    algorithm_.getTransform(mapFrameId_, camFrameId_);
+
+//    grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
+//    grid_map::GridMapCvConverter::initializeFromImage(dmap,resolution_ ,map_);
+//    const double lengthX = resolution_ * dmap.rows;
+//    const double lengthY = resolution_ * dmap.cols;
+
+    grid_map::Length length(mapLengthX_, mapLengthY_);
     map_.setGeometry(length, resolution_);
 
     // Grid map settings.
     map_.setFrameId(mapFrameId_);
+
     //map_.setGeometry(grid_map::Length(720, 2560), resolution_);
     ROS_INFO("Initialized map with size %f x %f m (%i x %i cells).", map_.getLength().x(),
          map_.getLength().y(), map_.getSize()(0), map_.getSize()(1));
@@ -136,8 +145,18 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
     mapInitialized_ = true;
   }
 
-  grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 3>(dmap, "elevation", map_, minHeight_, maxHeight_);
-  grid_map::GridMapCvConverter::addColorLayerFromImage<unsigned char, 3>(dmap, "color", map_);
+//  grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 3>(dmap, "elevation", map_, minHeight_, maxHeight_);
+//  grid_map::GridMapCvConverter::addColorLayerFromImage<unsigned char, 3>(dmap, "color", map_);
+
+  // Add data to grid map.
+  ros::Time time = ros::Time::now();
+  for (grid_map::GridMapIterator it(map_); !it.isPastEnd(); ++it) {
+    grid_map::Position position;
+    map_.getPosition(*it, position);
+    map_.at("elevation", *it) = algorithm_.getElevation(position, pc);
+  }
+
+
 
   // Publish grid map.
   grid_map_msgs::GridMap message;

@@ -7,11 +7,14 @@ Algorithm::Algorithm()
 	  isrunning_(true),
 	  calib_img_size_(),
 	  out_img_size_()
+//	  lookup_(NULL),
+//	  initialized_(true)
 {
 }
 
 Algorithm::~Algorithm()
 {
+//  delete [] lookup_;
 }
 
 cv::Mat Algorithm::generateDisparityMap(cv::Mat& left, cv::Mat& right){
@@ -145,17 +148,25 @@ void Algorithm::remapImage(cv::Mat& src, cv::Mat& dst, setting side){
   }
 }
 
-sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap){
+sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap, int ncells){
+//  if(initialized_){
+//    int** lookup_ = new int*[ncells];
+//    for(int i = 0; i < ncells; i++)
+//      lookup_[i] = new int[img.cols*img.rows/ncells];
+//    initialized_ = false;
+//  }
+
   cv::Mat V = cv::Mat(4, 1, CV_64FC1);
   cv::Mat pos = cv::Mat(4, 1, CV_64FC1);
   std::vector< cv::Point3d > points;
 
-  sensor_msgs::PointCloud pc;
   sensor_msgs::ChannelFloat32 ch;
+  sensor_msgs::PointCloud pc;
 
   ch.name = "rgb";
   pc.header.frame_id = "camera_1";
   pc.header.stamp = ros::Time::now();
+
 
   for (int i = 0; i < img.cols; i++){
     for (int j = 0; j < img.rows; j++){
@@ -197,10 +208,65 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
       blue = img.at<cv::Vec3b>(j,i)[0];
       int32_t rgb = (red << 16 | green << 8 | blue);
       ch.values.push_back(*reinterpret_cast<float*>(&rgb));
+
     }
   }
   pc.channels.push_back(ch);
   return pc;
+}
+
+void Algorithm::getTransform(const std::string target_frame, const std::string source_frame){
+  try{
+    listener_.lookupTransform(target_frame, source_frame,
+                             ros::Time(0), transform_);
+  }
+  catch (tf::TransformException & ex){
+    ROS_ERROR("%s",ex.what());
+    ros::Duration(1.0).sleep();
+  }
+
+  ROS_INFO("Camera origin: x= %f, y = %f, z = %f", transform_.getOrigin().x()
+           , transform_.getOrigin().y(), transform_.getOrigin().z());
+
+
+  // Test
+  tf::Vector3 point;
+  tf::Vector3 v(0,0,3);
+  point = transform_.getBasis() * v + transform_.getOrigin();
+
+  ROS_INFO("Transform test: x= %f, y = %f, z = %f", point.x(),point.y(), point.z());
+
+}
+
+float Algorithm::getElevation(grid_map::Position position, sensor_msgs::PointCloud pc){
+
+  double w_num, w_fact, pos_x, pos_y, d, dx, dy, beta;
+
+  tf::Vector3 pc_map;
+
+  w_num   = 0.0;
+  w_fact  = 0.0;
+
+  for(int i = 0; i<pc.points.size(); i++){
+
+    tf::Vector3 v_pc(pc.points[i].x,pc.points[i].y,pc.points[i].z);
+
+    pc_map = transform_.getBasis() * v_pc + transform_.getOrigin();
+
+    d = sqrt(pow(pc_map.x()-position.x(),2)+pow(pc_map.y()-position.y(),2));
+
+    if(d < 0.5){
+      // exp(x) = 1 + x(1+x/2(1+(x/3)(...))) ~ 1 + x (1 + x/2)
+      beta = exp(-d);
+      // beta = 1 - d*(1 - d/2);
+      w_num += beta*pc_map.z();
+      w_fact += beta;
+    }
+  }
+
+  if(w_fact == 0)
+    return 0.0;
+  return w_num / w_fact;
 }
 
 void Algorithm::setCamSettings(const CamSettings cam_settings){

@@ -4,10 +4,12 @@
 #include <iostream>
 #include <string>
 #include <cstdint>
+#include <cmath>
 
 // ROS
 #include <ros/ros.h>
 #include <std_srvs/Trigger.h>
+#include <tf/transform_listener.h>
 
 // ROS messages
 #include <sensor_msgs/PointCloud.h>
@@ -45,6 +47,14 @@ typedef struct
 	int width;
 	int fps;
 } CamSettings;
+
+///*!
+// * Structure containing the lookup table.
+// */
+//typedef struct
+//{
+//  int* data;
+//} LookUpTable;
 
 /*!
  * Class containing the algorithmic part of the package.
@@ -110,7 +120,20 @@ class Algorithm
    * @param dmap disparity map.
    * @return point cloud.
    */
-  sensor_msgs::PointCloud processPointCloud(cv::Mat& img, cv::Mat& dmap);
+  sensor_msgs::PointCloud processPointCloud(cv::Mat& img, cv::Mat& dmap, int ncells);
+
+  /*!
+   * Calculate point cloud.
+   * @param target_frame
+   * @param source_frame
+   */
+  void getTransform(const std::string target_frame, const std::string source_frame);
+
+  /*!
+   * Get the elevation of the map according to the position of the center of a cell.
+   * @param position
+   */
+  float getElevation(grid_map::Position position, sensor_msgs::PointCloud pc);
 
   /*!
    * Set the camera settings parameters.
@@ -162,6 +185,10 @@ class Algorithm
 
  private:
 
+//  //! Look up table.
+//  int** lookup_;
+
+
   //! Internal logical variable to configure the camera only on service request.
   bool istoconf_;
 
@@ -182,6 +209,13 @@ class Algorithm
 
   // Size undistorted and rectify image.
   cv::Size out_img_size_;
+
+  // TF listener and transform
+  tf::TransformListener listener_;
+  tf::StampedTransform transform_;
+
+//  //! Initialized logic.
+//  bool initialized_;
 
 
 };

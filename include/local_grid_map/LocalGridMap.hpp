@@ -129,6 +129,7 @@ class LocalGridMap
 
   //! ROS server parameters; Frame identification.
   std::string mapFrameId_;
+  std::string camFrameId_;
 
   //! Image topic to subscribe.
   std::string imageTopicL_;
@@ -139,6 +140,10 @@ class LocalGridMap
 
   //! Resolution of the grid map.
   double resolution_;
+
+  //! Length of the map
+  double mapLengthX_;
+  double mapLengthY_;
 
   //! Range of the cell's value.
   double minHeight_;

@@ -1,11 +1,14 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="map_frame_id"        	default="/world" />
+  <arg name="cam_frame_id"        	default="/camera_1" />
   <arg name="image_topic_right"   	default="/camera0/camera_capture/stereo/right/image" />
-  <arg name="image_topic_left"   		default="/camera0/camera_capture/stereo/left/image" />
-  <arg name="calib_file_path"   		default="$(find local_grid_map)/calibration/zed.yml" />
+  <arg name="image_topic_left"   	  default="/camera0/camera_capture/stereo/left/image" />
+  <arg name="calib_file_path"   	  default="$(find local_grid_map)/calibration/zed.yml" />
   <arg name="publish_rate"          default="1" />
-  <arg name="resolution"          	default="0.01" />
+  <arg name="map_length_x"        	default="4.0" />
+  <arg name="map_length_y"        	default="3.0" />
+  <arg name="resolution"          	default="0.1" />
   <arg name="min_height"          	default="0.0" />
   <arg name="max_height"          	default="1.0" />
 
@@ -13,10 +16,13 @@
   <node pkg="local_grid_map" type="local_grid_map" name="local_grid_map" output="screen">
     <!-- ROS parameters -->
     <param name="map_frame_id"      value="$(arg map_frame_id)" />
+    <param name="cam_frame_id"      value="$(arg cam_frame_id)" />
     <param name="image_topic_right" value="$(arg image_topic_right)" />
     <param name="image_topic_left"  value="$(arg image_topic_left)" />
     <param name="calib_file_path"   value="$(arg calib_file_path)" />
     <param name="publish_rate"      value="$(arg publish_rate)" />
+    <param name="map_length_x"      value="$(arg map_length_x)" />
+    <param name="map_length_y"      value="$(arg map_length_y)" />
     <param name="resolution"        value="$(arg resolution)" />
     <param name="min_height"        value="$(arg min_height)" />
     <param name="max_height"        value="$(arg max_height)" />
