@@ -3,6 +3,7 @@
 
 #include <image_transport/image_transport.h>
 
+
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "local_grid_map");

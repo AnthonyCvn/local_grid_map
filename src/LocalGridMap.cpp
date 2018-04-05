@@ -5,6 +5,7 @@ namespace local_grid_map {
 LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL, std::string imageTopicR)
     : nodeHandle_(nodeHandle),
       it_(nodeHandle),
+      reconfig_server_(nodeHandle),
       sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("theora", ros::TransportHints().unreliable())),
       sub_img_right_(it_, imageTopicR, 1),
       sync_(SyncPolicy(10), sub_img_right_, sub_img_left_),
@@ -28,6 +29,10 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
 
   // Synchronize images topic.
   sync_.registerCallback( boost::bind(&LocalGridMap::imageCallback, this, _1, _2 ) );
+
+  // Dynamic reconfiguration server
+  f_configcallback_ = boost::bind(&LocalGridMap::configcallback, this, _1, _2);
+  reconfig_server_.setCallback(f_configcallback_);
 
   // Launch the point cloud publisher.
   pointCloud_pub_ = nodeHandle_.advertise<sensor_msgs::PointCloud>("/camera/left/point_cloud",1);
@@ -66,6 +71,11 @@ bool LocalGridMap::readParameters()
 
   // Load camera parameters
   return algorithm_.loadCameraParameters(calib_file_path_);
+}
+
+void LocalGridMap::configcallback(const local_grid_map::GridMapParamsConfig &config, const uint32_t& level) {
+  ROS_INFO("Reconfigure Request: %f", config.SIGMA);
+  algorithm_.setGaussParameter(config.SIGMA);
 }
 
 void LocalGridMap::timerCallback(const ros::TimerEvent& event)

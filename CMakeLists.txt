@@ -21,6 +21,8 @@ find_package(catkin REQUIRED COMPONENTS
   grid_map_visualization
   image_transport
   roscpp
+  rospy
+  dynamic_reconfigure
   sensor_msgs
   std_msgs
   theora_image_transport
@@ -42,6 +44,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
 FILE(GLOB LIBELAS_SRC_FILES "src/elas/*.cpp")
+
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -114,10 +117,10 @@ FILE(GLOB LIBELAS_SRC_FILES "src/elas/*.cpp")
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+generate_dynamic_reconfigure_options(
+  cfg/GridMapParams.cfg
+)
+
 
 ###################################
 ## catkin specific configuration ##
@@ -131,7 +134,7 @@ FILE(GLOB LIBELAS_SRC_FILES "src/elas/*.cpp")
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES local_grid_map
-  CATKIN_DEPENDS compressed_image_transport cv_bridge image_transport roscpp sensor_msgs std_msgs theora_image_transport grid_map_core grid_map_ros grid_map_cv grid_map_filters grid_map_loader grid_map_msgs grid_map_octomap grid_map_rviz_plugin grid_map_visualization
+  CATKIN_DEPENDS compressed_image_transport cv_bridge image_transport roscpp rospy dynamic_reconfigure sensor_msgs std_msgs theora_image_transport grid_map_core grid_map_ros grid_map_cv grid_map_filters grid_map_loader grid_map_msgs grid_map_octomap grid_map_rviz_plugin grid_map_visualization 
 # DEPENDS system_lib
 )
 
@@ -149,6 +152,7 @@ include_directories(
   ${LIBELAS_SRC_DIR}
   ${Boost_INCLUDE_DIRS}
   ${INC_DIR}
+  ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
 )
 
 ## Declare a C++ library
@@ -172,6 +176,7 @@ add_dependencies(${PROJECT_NAME}
   ${catkin_EXPORTED_TARGETS}
 )
 
+
 ## Specify libraries to link executable targets against
 target_link_libraries(${PROJECT_NAME}_core
   ${catkin_LIBRARIES}
@@ -181,6 +186,9 @@ target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}_core
   ${catkin_LIBRARIES}
 )
+
+## Add dependency for dynamic reconfiguration
+add_dependencies(local_grid_map ${PROJECT_NAME}_gencfg)
 
 #############
 ## Install ##
@@ -207,6 +215,7 @@ install(
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
+
 #############
 ## Testing ##
 #############
@@ -222,3 +231,5 @@ endif()
 if(TARGET ${PROJECT_NAME}-test)
   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME}_core)
 endif()
+
+

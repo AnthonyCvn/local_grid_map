@@ -136,6 +136,12 @@ class Algorithm
   float getElevation(grid_map::Position position, sensor_msgs::PointCloud pc);
 
   /*!
+   * Set the the Gauss parameter.
+   * @param gauss_var desire variance.
+   */
+  void setGaussParameter(double gauss_var);
+
+  /*!
    * Set the camera settings parameters.
    * @param camSettings wraps the settings of the camera.
    */
@@ -198,11 +204,14 @@ class Algorithm
   //! Internal camera settings wrapper
   CamSettings camsettings_;
 
-  //! Camera parameters._
+  //! Camera parameters.
   cv::Mat Q_, P1_, P2_;
   cv::Mat R1_, R2_, K1_, K2_, D1_, D2_, R_;
   cv::Mat lmapx_, lmapy_, rmapx_, rmapy_;
   cv::Vec3d T_;
+
+  //! Inverse variance for the Gauss kernel of the  weighting regression.
+  double gauss_ivar_;
 
   // Size of the image used for stereo calibration.
   cv::Size calib_img_size_;

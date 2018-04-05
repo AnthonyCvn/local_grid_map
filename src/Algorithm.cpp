@@ -1,12 +1,15 @@
 #include "local_grid_map/Algorithm.hpp"
 
+#define SIGMA (0.5)
+
 namespace local_grid_map {
 
 Algorithm::Algorithm()
     : istoconf_(false),
 	  isrunning_(true),
 	  calib_img_size_(),
-	  out_img_size_()
+	  out_img_size_(),
+	  gauss_ivar_(1)
 //	  lookup_(NULL),
 //	  initialized_(true)
 {
@@ -242,6 +245,7 @@ float Algorithm::getElevation(grid_map::Position position, sensor_msgs::PointClo
 
   double w_num, w_fact, pos_x, pos_y, d, dx, dy, beta;
 
+
   tf::Vector3 pc_map;
 
   w_num   = 0.0;
@@ -257,7 +261,7 @@ float Algorithm::getElevation(grid_map::Position position, sensor_msgs::PointClo
 
     if(d < 0.5){
       // exp(x) = 1 + x(1+x/2(1+(x/3)(...))) ~ 1 + x (1 + x/2)
-      beta = exp(-d);
+      beta = exp(-d*gauss_ivar_);
       // beta = 1 - d*(1 - d/2);
       w_num += beta*pc_map.z();
       w_fact += beta;
@@ -267,6 +271,10 @@ float Algorithm::getElevation(grid_map::Position position, sensor_msgs::PointClo
   if(w_fact == 0)
     return 0.0;
   return w_num / w_fact;
+}
+
+void Algorithm::setGaussParameter(double gauss_var){
+  gauss_ivar_ = 1/(2*pow(gauss_var,2));
 }
 
 void Algorithm::setCamSettings(const CamSettings cam_settings){

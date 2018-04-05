@@ -17,6 +17,10 @@
 #include <sensor_msgs/ChannelFloat32.h>
 #include <geometry_msgs/Point32.h>
 
+// Dynamic reconfiguration
+#include <dynamic_reconfigure/server.h>
+#include <local_grid_map/GridMapParamsConfig.h>
+
 // Image transport
 #include <image_transport/image_transport.h>
 #include <image_transport/subscriber_filter.h>
@@ -63,6 +67,12 @@ class LocalGridMap
    */
   bool readParameters();
 
+  /*!
+   * ROS dynamic reconfiguration callback function.
+   * @param config parameter.
+   * @param level.
+   */
+  void configcallback(const local_grid_map::GridMapParamsConfig &config, const uint32_t& level);
   /*!
    * ROS timer callback.
    * @param TimerEvent the event structure of the timer.
@@ -111,6 +121,10 @@ class LocalGridMap
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> SyncPolicy;
   message_filters::Synchronizer< SyncPolicy > sync_;
+
+  //! Dynamic reconfiguration server
+  dynamic_reconfigure::Server<local_grid_map::GridMapParamsConfig> reconfig_server_;
+  dynamic_reconfigure::Server<local_grid_map::GridMapParamsConfig>::CallbackType f_configcallback_;
 
   //! ROS service server.
   ros::ServiceServer serviceServer_;

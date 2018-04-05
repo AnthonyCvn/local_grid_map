@@ -1,0 +1,7 @@
+\subsubsection usage Usage
+\verbatim
+<node name="local_grid_map" pkg="local_grid_map" type="local_grid_map">
+  <param name="SIGMA" type="double" value="0.0" />
+</node>
+\endverbatim
+
