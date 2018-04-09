@@ -8,8 +8,7 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
       reconfig_server_(nodeHandle),
       sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("theora", ros::TransportHints().unreliable())),
       sub_img_right_(it_, imageTopicR, 1),
-      sync_(SyncPolicy(10), sub_img_right_, sub_img_left_),
-	    map_(grid_map::GridMap({"original", "elevation"})),
+      sync_(SyncPolicy(50), sub_img_right_, sub_img_left_),
 	    mapInitialized_(false)
 {
   if (!readParameters()) {
@@ -17,15 +16,14 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
     ros::requestShutdown();
   }
 
-
-  // Launch the ImageTransport subscriber for a single topic.
-  /*
-  imageSubscriber_ = it_.subscribe(imageTopicL_, 1,
-		  	  	  	  	  	  	  	   &LocalGridMap::imageCallback, this ,
-		  	  	  	  	  	  	  	   image_transport::TransportHints("raw",
-		  	  	  	  	  	  	  	   ros::TransportHints().unreliable()));
-   */
-
+  // Create the grid map and all layers.
+  std::vector<std::string> layers(map_cache_number_+2);
+  layers[0] = "original";
+  layers[1] = "elevation";
+  for(int i=0;i<map_cache_number_;i++){
+    layers[i+2] = "layer_"+std::to_string(i);
+  }
+  map_ = grid_map::GridMap(grid_map::GridMap(layers));
 
   // Synchronize images topic.
   sync_.registerCallback( boost::bind(&LocalGridMap::imageCallback, this, _1, _2 ) );
@@ -56,20 +54,22 @@ LocalGridMap::~LocalGridMap()
 }
 
 bool LocalGridMap::readParameters()
-{ // Read ROS parameters
-  if (!(nodeHandle_.getParam("map_frame_id", mapFrameId_) 	      &&
-        nodeHandle_.getParam("cam_frame_id", camFrameId_)         &&
-        nodeHandle_.getParam("image_topic_right", imageTopicR_) 	&&
-        nodeHandle_.getParam("image_topic_left", imageTopicL_)    &&
-        nodeHandle_.getParam("publish_rate", publishRate_)	      &&
-        nodeHandle_.getParam("calib_file_path", calib_file_path_) &&
-        nodeHandle_.getParam("map_length_x", mapLengthX_)         &&
-        nodeHandle_.getParam("map_length_y", mapLengthY_)         &&
-        nodeHandle_.getParam("resolution", resolution_)			      &&
-        nodeHandle_.getParam("min_height", minHeight_)			      &&
+{
+  // Read ROS parameters
+  if (!(nodeHandle_.getParam("map_frame_id", mapFrameId_) 	        &&
+        nodeHandle_.getParam("cam_frame_id", camFrameId_)           &&
+        nodeHandle_.getParam("image_topic_right", imageTopicR_) 	  &&
+        nodeHandle_.getParam("image_topic_left", imageTopicL_)      &&
+        nodeHandle_.getParam("publish_rate", publishRate_)	        &&
+        nodeHandle_.getParam("calib_file_path", calib_file_path_)   &&
+        nodeHandle_.getParam("map_cache_number", map_cache_number_) &&
+        nodeHandle_.getParam("map_length_x", mapLengthX_)           &&
+        nodeHandle_.getParam("map_length_y", mapLengthY_)           &&
+        nodeHandle_.getParam("resolution", resolution_)			        &&
+        nodeHandle_.getParam("min_height", minHeight_)			        &&
         nodeHandle_.getParam("max_height", maxHeight_))) return false;
 
-  // Load camera parameters
+  // Load camera parameters.
   return algorithm_.loadCameraParameters(calib_file_path_);
 }
 
@@ -87,92 +87,83 @@ bool LocalGridMap::serviceCallback(std_srvs::Trigger::Request& request,
                                    std_srvs::Trigger::Response& response)
 {
   response.success = true;
-  response.message = "The average is " + std::to_string(3);
+  // ...
   return true;
 }
 
 void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, const sensor_msgs::ImageConstPtr& msg_right)
 {
   static const int ncells = mapLengthX_*mapLengthY_/(resolution_*resolution_);
-  // Compute disparity map
   cv::Mat img_left, img_right, img_left_color;
   cv::Mat tmpL = cv_bridge::toCvShare(msg_left, "mono8")->image;
   cv::Mat tmpR = cv_bridge::toCvShare(msg_right, "mono8")->image;
-
   cv::Size image_size_calib = cv::Size(tmpL.size().width, tmpL.size().height);
-
   cv::Size image_size_out = cv::Size(tmpL.size().width/3, tmpL.size().height/3);
-
-
 
   if (tmpL.empty() || tmpR.empty())
     return;
 
+  // Initialization based on pictures.
   if (!mapInitialized_){
-      algorithm_.setIOImageSize(image_size_calib, image_size_out);
-      algorithm_.findRectificationMap();
+    // Set algorithm parameters.
+    algorithm_.setIOImageSize(image_size_calib, image_size_out);
+
+    // Find rectification-distortion map.
+    algorithm_.findRectificationMap();
+
+    // Find TF transformation between camera and map frame.
+    algorithm_.getTransform(mapFrameId_, camFrameId_);
+
+    // Grid map settings.
+    grid_map::Length length(mapLengthX_, mapLengthY_);
+    map_.setGeometry(length, resolution_);
+    map_.setFrameId(mapFrameId_);
+
+    ROS_INFO("Initialized map with size %f x %f m (%i x %i cells).", map_.getLength().x(),
+              map_.getLength().y(), map_.getSize()(0), map_.getSize()(1));
+
+      mapInitialized_ = true;
   }
 
+  // Rectify and undistorted left and right image.
   algorithm_.remapImage(tmpL, img_left, Algorithm::LEFT);
   algorithm_.remapImage(tmpR, img_right, Algorithm::RIGHT);
 
+  // Find rectification map with LIBELAS library.
   cv::Mat dmap = algorithm_.generateDisparityMap(img_left, img_right);
 
-
-  cvtColor(img_left, img_left_color, CV_GRAY2BGR);
+  // Generate point cloud.
   sensor_msgs::PointCloud pc;
+  cvtColor(img_left, img_left_color, CV_GRAY2BGR);
   pc = algorithm_.processPointCloud(img_left_color, dmap, ncells);
 
-  pointCloud_pub_.publish(pc);
-
-//  imshow("DISP", dmap);
-//  imshow("LEFT", tmpL);
-//  imshow("RECT-LEFT", img_left);
-//  imshow("RECT-LEFT-COLOR", img_left_color);
-//  imshow("RIGHT", tmpR);
-//  imshow("RECT-RIGHT", img_right);
-//  cv::waitKey(30);
-
-  if (!mapInitialized_) {
-
-    algorithm_.getTransform(mapFrameId_, camFrameId_);
-
-//    grid_map::GridMapRosConverter::initializeFromImage(current_msg, resolution_, map_);
-//    grid_map::GridMapCvConverter::initializeFromImage(dmap,resolution_ ,map_);
-//    const double lengthX = resolution_ * dmap.rows;
-//    const double lengthY = resolution_ * dmap.cols;
-
-    grid_map::Length length(mapLengthX_, mapLengthY_);
-    map_.setGeometry(length, resolution_);
-
-    // Grid map settings.
-    map_.setFrameId(mapFrameId_);
-
-    //map_.setGeometry(grid_map::Length(720, 2560), resolution_);
-    ROS_INFO("Initialized map with size %f x %f m (%i x %i cells).", map_.getLength().x(),
-         map_.getLength().y(), map_.getSize()(0), map_.getSize()(1));
-
-    mapInitialized_ = true;
-  }
-
-//  grid_map::GridMapCvConverter::addLayerFromImage<unsigned char, 3>(dmap, "elevation", map_, minHeight_, maxHeight_);
-//  grid_map::GridMapCvConverter::addColorLayerFromImage<unsigned char, 3>(dmap, "color", map_);
-
-  // Add data to grid map.
+  // Add data to grid map layers.
   ros::Time time = ros::Time::now();
+  static int n = 0;
   for (grid_map::GridMapIterator it(map_); !it.isPastEnd(); ++it) {
     grid_map::Position position;
     map_.getPosition(*it, position);
-    map_.at("elevation", *it) = algorithm_.getElevation(position, pc);
+    map_.at("layer_"+std::to_string(n), *it) = algorithm_.getElevation(position, pc);
   }
+  n++;
+  if(n>9)
+    n=0;
 
+  // Process the mean of every layers.
+  map_["elevation"].setConstant(0.0);
+  for(int i=0;i<10;i++){
+    map_["elevation"] += map_["layer_"+std::to_string(i)];
 
+  }
+  map_["elevation"] = 1.0/map_cache_number_ * map_["elevation"];
+
+  // Publish point cloud.
+  pointCloud_pub_.publish(pc);
 
   // Publish grid map.
   grid_map_msgs::GridMap message;
   grid_map::GridMapRosConverter::toMessage(map_, message);
   gridMapPublisher_.publish(message);
-
 }
 
 

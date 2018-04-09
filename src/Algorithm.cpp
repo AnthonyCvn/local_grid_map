@@ -1,33 +1,19 @@
 #include "local_grid_map/Algorithm.hpp"
 
-#define SIGMA (0.5)
-
 namespace local_grid_map {
 
 Algorithm::Algorithm()
-    : istoconf_(false),
-	  isrunning_(true),
-	  calib_img_size_(),
+    :calib_img_size_(),
 	  out_img_size_(),
-	  gauss_ivar_(1)
-//	  lookup_(NULL),
-//	  initialized_(true)
+	  gauss_ivar_()
 {
 }
 
 Algorithm::~Algorithm()
 {
-//  delete [] lookup_;
 }
 
 cv::Mat Algorithm::generateDisparityMap(cv::Mat& left, cv::Mat& right){
-
-  //int out_width = left.cols;
-  //int out_height = left.rows;
-  //cv::Size out_img_size = cv::Size(out_width, out_height);;
-
-  //imshow("LEFT", left);
-  //imshow("RIGHT", right);
 
   if (left.empty() || right.empty())
     return left;
@@ -38,33 +24,6 @@ cv::Mat Algorithm::generateDisparityMap(cv::Mat& left, cv::Mat& right){
 
   Elas::parameters param(Elas::ROBOTICS);
 
-/*(Elas::ROBOTICS)
-  param.disp_min              = 0;
-  param.disp_max              = 255;
-  param.support_threshold     = 0.85;
-  param.support_texture       = 10;
-  param.candidate_stepsize    = 5;
-  param.incon_window_size     = 5;
-  param.incon_threshold       = 5;
-  param.incon_min_support     = 5;
-  param.add_corners           = 0;
-  param.grid_size             = 20;
-  param.beta                  = 0.02;
-  param.gamma                 = 3;
-  param.sigma                 = 1;
-  param.sradius               = 2;
-  param.match_texture         = 1;
-  param.lr_threshold          = 2;
-  param.speckle_sim_threshold = 1;
-  param.speckle_size          = 200;
-  param.ipol_gap_width        = 3;
-  param.filter_median         = 0;
-  param.filter_adaptive_mean  = 1;
-  param.postprocess_only_left = 1;
-  param.subsampling           = 0;
-
-*/
-
   param.postprocess_only_left = true;
 
   Elas elas(param);
@@ -73,32 +32,6 @@ cv::Mat Algorithm::generateDisparityMap(cv::Mat& left, cv::Mat& right){
 
   cv::Mat dmap = cv::Mat(out_img_size_, CV_8UC1, cv::Scalar(0));
   leftdpf.convertTo(dmap, CV_8U, 1.);
-
-//  // find maximum disparity for scaling output disparity images to [0..255]
-//  float disp_max = 0;
-//  for (int32_t i=0; i<imsize.width*imsize.height; i++) {
-//    if (leftdpf.data[i]>disp_max) disp_max = leftdpf.data[i];
-//    if (rightdpf.data[i]>disp_max) disp_max = rightdpf.data[i];
-//  }
-//
-//  cv::Mat dmap = cv::Mat(imsize, CV_8UC1, cv::Scalar(0));
-//
-//  cv::normalize(leftdpf, dmap, 0, 255, cv::NORM_MINMAX, CV_8U);
-
-
-
-  //cv::resize(dmap, dmap, cv::Size(imsize.width/2, imsize.height/2), 0, 0, cv::INTER_AREA);// Or cv::INTER_CUBIC
-
-
-//  leftdpf.convertTo(dmap, CV_8U, 1.);
-//  cv::imshow("leftdpf",leftdpf);
-//
-//   copy float to uchar
-//  for (int32_t i=0; i<imsize.width*imsize.height; i++) {
-//    dmap.data[i] = (uint8_t)std::max(255.0*leftdpf.data[i]/disp_max,0.0);
-//  }
-
-  //imshow("FLOAT", leftdpf);
 
   return dmap;
 }
@@ -152,12 +85,6 @@ void Algorithm::remapImage(cv::Mat& src, cv::Mat& dst, setting side){
 }
 
 sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap, int ncells){
-//  if(initialized_){
-//    int** lookup_ = new int*[ncells];
-//    for(int i = 0; i < ncells; i++)
-//      lookup_[i] = new int[img.cols*img.rows/ncells];
-//    initialized_ = false;
-//  }
 
   cv::Mat V = cv::Mat(4, 1, CV_64FC1);
   cv::Mat pos = cv::Mat(4, 1, CV_64FC1);
@@ -167,7 +94,7 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
   sensor_msgs::PointCloud pc;
 
   ch.name = "rgb";
-  pc.header.frame_id = "camera_1";
+  pc.header.frame_id = "camera0";
   pc.header.stamp = ros::Time::now();
 
 
@@ -232,7 +159,7 @@ void Algorithm::getTransform(const std::string target_frame, const std::string s
            , transform_.getOrigin().y(), transform_.getOrigin().z());
 
 
-  // Test
+  // Test transformation
   tf::Vector3 point;
   tf::Vector3 v(0,0,3);
   point = transform_.getBasis() * v + transform_.getOrigin();
@@ -275,39 +202,6 @@ float Algorithm::getElevation(grid_map::Position position, sensor_msgs::PointClo
 
 void Algorithm::setGaussParameter(double gauss_var){
   gauss_ivar_ = 1/(2*pow(gauss_var,2));
-}
-
-void Algorithm::setCamSettings(const CamSettings cam_settings){
-  camsettings_ = cam_settings;
-}
-
-CamSettings Algorithm::getCamSettings(){
-  return camsettings_;
-}
-
-void Algorithm::setCamIsToConf(const bool conf_camera){
-  istoconf_ = conf_camera;
-}
-
-bool Algorithm::getCamIsToConf()
-{
-  if(istoconf_)
-  {
-    istoconf_ = false;
-	return true;
-  }
-  return false;
-}
-
-bool Algorithm::getCamIsRunning()
-{
-  return isrunning_;
-}
-
-void Algorithm::setCamIsRunning(const bool run_camera)
-{
-	isrunning_ = run_camera;
-
 }
 
 } /* namespace */

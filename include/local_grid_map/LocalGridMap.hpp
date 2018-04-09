@@ -106,19 +106,12 @@ class LocalGridMap
   //! Grid map data.
   grid_map::GridMap map_;
 
-
-  //! Is parameters well read.
-//  bool isParamRead_;
-
-
   //! Image transport subscriber
-  //image_transport::Subscriber imageSubscriber_;
-
   image_transport::ImageTransport it_;
-
   image_transport::SubscriberFilter sub_img_left_;
   image_transport::SubscriberFilter sub_img_right_;
 
+  //! Message filters synchronization.
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> SyncPolicy;
   message_filters::Synchronizer< SyncPolicy > sync_;
 
@@ -134,9 +127,6 @@ class LocalGridMap
 
   //! Algorithm computation object.
   Algorithm algorithm_;
-
-  //! Camera settings wrapper.
-  CamSettings camSettings_;
 
   //! UVC camera capture.
   cv::VideoCapture capture_;
@@ -168,6 +158,12 @@ class LocalGridMap
 
   //! Path of file storage with camera parameters.
   std::string calib_file_path_;
+
+  //! Number of cache layer;
+  int map_cache_number_;
+
+  //! Queue size for image topics synchronization.
+  int  sync_queue_size_;
 
 };
 

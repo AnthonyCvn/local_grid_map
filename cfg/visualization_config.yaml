@@ -4,3 +4,9 @@ grid_map_visualizations:
     type: point_cloud
     params:
      layer: elevation
+  - name: traversability_grid
+    type: occupancy_grid
+    params:
+     layer: elevation
+     data_min: -4.0
+     data_max: 1.0

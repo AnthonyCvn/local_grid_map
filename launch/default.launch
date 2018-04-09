@@ -1,14 +1,15 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="map_frame_id"        	default="/world" />
-  <arg name="cam_frame_id"        	default="/camera_1" />
+  <arg name="cam_frame_id"        	default="/camera0" />
   <arg name="image_topic_right"   	default="/camera0/camera_capture/stereo/right/image" />
   <arg name="image_topic_left"   	  default="/camera0/camera_capture/stereo/left/image" />
   <arg name="calib_file_path"   	  default="$(find local_grid_map)/calibration/zed.yml" />
+  <arg name="map_cache_number"   	  default="10" />
   <arg name="publish_rate"          default="1" />
-  <arg name="map_length_x"        	default="4.0" />
-  <arg name="map_length_y"        	default="3.0" />
-  <arg name="resolution"          	default="0.1" />
+  <arg name="map_length_x"        	default="2" />
+  <arg name="map_length_y"        	default="2" />
+  <arg name="resolution"          	default="0.05" />
   <arg name="min_height"          	default="0.0" />
   <arg name="max_height"          	default="1.0" />
 
@@ -20,6 +21,7 @@
     <param name="image_topic_right" value="$(arg image_topic_right)" />
     <param name="image_topic_left"  value="$(arg image_topic_left)" />
     <param name="calib_file_path"   value="$(arg calib_file_path)" />
+    <param name="map_cache_number"  value="$(arg map_cache_number)" />>
     <param name="publish_rate"      value="$(arg publish_rate)" />
     <param name="map_length_x"      value="$(arg map_length_x)" />
     <param name="map_length_y"      value="$(arg map_length_y)" />
@@ -29,12 +31,12 @@
   </node>
 
 
-  <!-- Launch the grid map visualizer 
+  <!-- Launch the grid map visualizer -->
   <node pkg="grid_map_visualization" type="grid_map_visualization" name="grid_map_visualization" output="screen">
-    <rosparam command="load" file="$(find local_grid_map)/config/image_to_gridmap_demo.yaml" />
+    <rosparam command="load" file="$(find local_grid_map)/cfg/visualization_config.yaml" />
   </node>
--->
-  <!-- Launch RViz with the demo configuration 
+
+  <!-- Launch RViz with the demo configuration -->
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find local_grid_map)/rviz/grid_map_demo.rviz" />
--->
+
 </launch>
