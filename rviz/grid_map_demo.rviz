@@ -4,8 +4,11 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Status1
         - /Elevation2
-      Splitter Ratio: 0.414746553
+        - /TF1
+        - /TF1/Frames1
+      Splitter Ratio: 0.555555582
     Tree Height: 825
   - Class: rviz/Selection
     Name: Selection
@@ -130,12 +133,12 @@ Visualization Manager:
       Class: rviz/Map
       Color Scheme: raw
       Draw Behind: false
-      Enabled: true
+      Enabled: false
       Name: Elevation
       Topic: /grid_map_visualization/traversability_grid
       Unreliable: false
       Use Timestamp: false
-      Value: true
+      Value: false
     - Alpha: 0.699999988
       Class: rviz/Map
       Color Scheme: map
@@ -191,6 +194,62 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Class: rviz/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        camera0:
+          Value: true
+        camera1:
+          Value: false
+        camera2:
+          Value: false
+        camera3:
+          Value: false
+        map0:
+          Value: true
+        map1:
+          Value: false
+        map2:
+          Value: false
+        map3:
+          Value: false
+        world:
+          Value: false
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        world:
+          camera0:
+            {}
+          camera1:
+            {}
+          camera2:
+            {}
+          camera3:
+            {}
+          map0:
+            {}
+          map1:
+            {}
+          map2:
+            {}
+          map3:
+            {}
+      Update Interval: 0
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /visualization_marker
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 255; 255; 255
@@ -216,25 +275,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 8.5794363
+      Distance: 12.1247683
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.125492334
-        Y: -0.406169504
-        Z: -1.86971557
+        X: 0.0175129138
+        Y: -0.322061658
+        Z: 2.26470041
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.369796276
+      Pitch: 0.195203334
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.04223037
+      Yaw: 4.1004343
     Saved: ~
 Window Geometry:
   Displays:

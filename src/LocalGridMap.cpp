@@ -8,7 +8,7 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
       reconfig_server_(nodeHandle),
       sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("theora", ros::TransportHints().unreliable())),
       sub_img_right_(it_, imageTopicR, 1),
-      sync_(SyncPolicy(50), sub_img_right_, sub_img_left_),
+      sync_(SyncPolicy(100), sub_img_right_, sub_img_left_),
 	    mapInitialized_(false)
 {
   if (!readParameters()) {
