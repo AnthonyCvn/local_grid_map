@@ -142,6 +142,10 @@ class LocalGridMap
   //! ROS server parameters; Publish rate.
   int publishRate_;
 
+  //! Remap output image size.
+  int out_img_height_;
+  int out_img_width_;
+
   //! Resolution of the grid map.
   double resolution_;
 

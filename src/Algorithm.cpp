@@ -103,7 +103,7 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
       int d = dmap.at<uchar>(j,i);
 
       // ignore low disparity point
-      if (d < 10)
+      if (d < 1)
         continue;
 
       // 3D homogenous coordinates of the image point

@@ -6,7 +6,7 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
     : nodeHandle_(nodeHandle),
       it_(nodeHandle),
       reconfig_server_(nodeHandle),
-      sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("theora", ros::TransportHints().unreliable())),
+      sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("raw", ros::TransportHints().unreliable())),
       sub_img_right_(it_, imageTopicR, 1),
       sync_(SyncPolicy(100), sub_img_right_, sub_img_left_),
 	    mapInitialized_(false)
@@ -61,6 +61,8 @@ bool LocalGridMap::readParameters()
         nodeHandle_.getParam("image_topic_right", imageTopicR_) 	  &&
         nodeHandle_.getParam("image_topic_left", imageTopicL_)      &&
         nodeHandle_.getParam("publish_rate", publishRate_)	        &&
+        nodeHandle_.getParam("out_img_height", out_img_height_)          &&
+        nodeHandle_.getParam("out_img_width", out_img_width_)          &&
         nodeHandle_.getParam("calib_file_path", calib_file_path_)   &&
         nodeHandle_.getParam("map_cache_number", map_cache_number_) &&
         nodeHandle_.getParam("map_length_x", mapLengthX_)           &&
@@ -98,7 +100,7 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
   cv::Mat tmpL = cv_bridge::toCvShare(msg_left, "mono8")->image;
   cv::Mat tmpR = cv_bridge::toCvShare(msg_right, "mono8")->image;
   cv::Size image_size_calib = cv::Size(tmpL.size().width, tmpL.size().height);
-  cv::Size image_size_out = cv::Size(tmpL.size().width/3, tmpL.size().height/3);
+  cv::Size image_size_out = cv::Size(tmpL.size().width/8, tmpL.size().height/8);
 
   if (tmpL.empty() || tmpR.empty())
     return;
