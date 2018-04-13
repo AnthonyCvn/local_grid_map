@@ -1,4 +1,4 @@
-grid_map_topic: /local_grid_map/grid_map
+grid_map_topic: /south_grid_map/local_grid_map/grid_map
 grid_map_visualizations:
   - name: elevation_points
     type: point_cloud

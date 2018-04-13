@@ -3,15 +3,15 @@
   <arg name="map_frame_id"        	default="/world" />
   <arg name="cam_frame_id"        	default="/camera0" />
   <arg name="image_topic_right"   	default="/camera0/camera_capture/stereo/right/image" />
-  <arg name="image_topic_left"   		default="/camera0/camera_capture/stereo/left/image" />
-  <arg name="calib_file_path"   		default="$(find local_grid_map)/calibration/SN17103.yml" />
-  <arg name="map_cache_number"   		default="10" />
-  <arg name="publish_rate"          default="1" />
-  <arg name="out_img_height"        default="720" />  
-  <arg name="out_img_width"         default="1280" />
-  <arg name="map_length_x"        	default="2" />
-  <arg name="map_length_y"        	default="2" />
-  <arg name="resolution"          	default="0.05" />
+  <arg name="image_topic_left"   	default="/camera0/camera_capture/stereo/left/image" />
+  <arg name="calib_file_path"   	default="$(find local_grid_map)/calibration/SN17103.yml" />
+  <arg name="map_cache_number"  	default="10" />
+  <arg name="publish_rate"      	default="1" />
+  <arg name="out_img_height"        	default="1242" />  
+  <arg name="out_img_width"         	default="2208" />
+  <arg name="map_length_x"        	default="3.5" />
+  <arg name="map_length_y"        	default="1.7" />
+  <arg name="resolution"          	default="0.1" />
   <arg name="min_height"          	default="0.0" />
   <arg name="max_height"          	default="1.0" />
 
@@ -33,33 +33,6 @@
     <param name="min_height"        value="$(arg min_height)" />
     <param name="max_height"        value="$(arg max_height)" />
   </node>
-
-
-  <!-- Launch the grid map visualizer -->
-  <node pkg="grid_map_visualization" type="grid_map_visualization" name="grid_map_visualization" output="screen">
-    <rosparam command="load" file="$(find local_grid_map)/cfg/visualization_config.yaml" />
-  </node>
-
-<!--
-  <arg name="marker_size" default="4.4" />
-  <arg name="max_new_marker_error" default="0.08" />
-  <arg name="max_track_error" default="0.2" />
-  <arg name="cam_image_topic" default="/camera1/camera_capture/stereo/left/image" />
-  <arg name="cam_info_topic" default="/camera1/camera_capture/camera_info" />
-  <arg name="output_frame" default="/camera1" />
-  <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen">
-	<param name="marker_size"           type="double" value="$(arg marker_size)" />
-	<param name="max_new_marker_error"  type="double" value="$(arg max_new_marker_error)" />
-	<param name="max_track_error"       type="double" value="$(arg max_track_error)" />
-	<param name="output_frame"          type="string" value="$(arg output_frame)" />
-	<remap from="camera_image"  to="$(arg cam_image_topic)" />
-	<remap from="camera_info"   to="$(arg cam_info_topic)" />
-</node>
-
--->
-
-  <!-- Launch RViz with the demo configuration -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find local_grid_map)/rviz/grid_map_demo.rviz" />
 
 </launch>
 

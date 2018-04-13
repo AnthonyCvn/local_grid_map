@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string>
 #include <cstdint>
+#include <cmath>
 
 // ROS
 #include <ros/ros.h>

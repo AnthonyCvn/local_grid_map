@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="map_frame_id_north"      default="/map0" />
+  <arg name="calib_file_path_north"   default="$(find local_grid_map)/calibration/SN17101.yml" />
+  <arg name="cam_frame_id_north"      default="/camera0" />
+  <arg name="image_topic_right_north" default="/camera0/camera_capture/stereo/right/image" />
+  <arg name="image_topic_left_north"  default="/camera0/camera_capture/stereo/left/image" />
+
+  <arg name="map_frame_id_south"      default="/map1" />
+  <arg name="calib_file_path_south"   default="$(find local_grid_map)/calibration/SN17103.yml" />
+  <arg name="cam_frame_id_south"      default="/camera1" />
+  <arg name="image_topic_right_south" default="/camera1/camera_capture/stereo/right/image" />
+  <arg name="image_topic_left_south"  default="/camera1/camera_capture/stereo/left/image" />
+
+  <arg name="out_img_height"          default="310" />  
+  <arg name="out_img_width"           default="552" />
+
+  <!-- tf transformation publisher -->
+  <node name="world_tf_broadcaster" pkg="world_tf_broadcaster" type="world_tf_broadcaster.py" />
+
+  <!-- North grid map -->
+  <group ns="north_grid_map">
+      <include file="$(find local_grid_map)/launch/default.launch">
+  	  <arg name="map_frame_id"       value="$(arg map_frame_id_north)" />
+          <arg name="calib_file_path"    value="$(arg calib_file_path_north)" />
+	  <arg name="cam_frame_id"       value="$(arg cam_frame_id_north)" />
+	  <arg name="image_topic_right"  value="$(arg image_topic_right_north)" />
+	  <arg name="image_topic_left"   value="$(arg image_topic_left_north)" />
+	  <arg name="out_img_height"     value="$(arg out_img_height)" />
+	  <arg name="out_img_width"      value="$(arg out_img_width)" />
+      </include>
+  </group>
+
+    <!-- South grid map -->
+  <group ns="south_grid_map">
+      <include file="$(find local_grid_map)/launch/default.launch">
+  	  <arg name="map_frame_id"       value="$(arg map_frame_id_south)" />
+          <arg name="calib_file_path"    value="$(arg calib_file_path_south)" />
+	  <arg name="cam_frame_id"       value="$(arg cam_frame_id_south)" />
+	  <arg name="image_topic_right"  value="$(arg image_topic_right_south)" />
+	  <arg name="image_topic_left"   value="$(arg image_topic_left_south)" />
+	  <arg name="out_img_height"     value="$(arg out_img_height)" />
+	  <arg name="out_img_width"      value="$(arg out_img_width)" />
+      </include>
+  </group>
+
+  <!-- Launch the grid map visualizer for the North map -->
+  <node pkg="grid_map_visualization" type="grid_map_visualization" name="grid_map_visualization_north" output="screen">
+    <rosparam command="load" file="$(find local_grid_map)/cfg/visualization_north_config.yaml" />
+  </node>
+
+  <!-- Launch the grid map visualizer for the South map -->
+  <node pkg="grid_map_visualization" type="grid_map_visualization" name="grid_map_visualization_south" output="screen">
+    <rosparam command="load" file="$(find local_grid_map)/cfg/visualization_south_config.yaml" />
+  </node>
+
+  <!-- Launch RViz with the demo configuration -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find local_grid_map)/rviz/grid_map_demo.rviz" />
+
+</launch>
+

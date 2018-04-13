@@ -102,7 +102,7 @@ class Algorithm
    * @param dmap disparity map.
    * @return point cloud.
    */
-  sensor_msgs::PointCloud processPointCloud(cv::Mat& img, cv::Mat& dmap, int ncells);
+  sensor_msgs::PointCloud processPointCloud(cv::Mat& img, cv::Mat& dmap, int ncells, std::string camera_frame);
 
   /*!
    * Calculate point cloud.

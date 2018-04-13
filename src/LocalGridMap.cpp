@@ -6,7 +6,7 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
     : nodeHandle_(nodeHandle),
       it_(nodeHandle),
       reconfig_server_(nodeHandle),
-      sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("raw", ros::TransportHints().unreliable())),
+      sub_img_left_(it_, imageTopicL, 1, image_transport::TransportHints("compressed", ros::TransportHints().unreliable())),
       sub_img_right_(it_, imageTopicR, 1),
       sync_(SyncPolicy(100), sub_img_right_, sub_img_left_),
 	    mapInitialized_(false)
@@ -17,11 +17,12 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
   }
 
   // Create the grid map and all layers.
-  std::vector<std::string> layers(map_cache_number_+2);
-  layers[0] = "original";
-  layers[1] = "elevation";
+  std::vector<std::string> layers(map_cache_number_ + 3);
+  layers[0] = "mean";
+  layers[1] = "variance_square";
+  layers[2] = "elevation";
   for(int i=0;i<map_cache_number_;i++){
-    layers[i+2] = "layer_"+std::to_string(i);
+    layers[i+3] = "layer_"+std::to_string(i);
   }
   map_ = grid_map::GridMap(grid_map::GridMap(layers));
 
@@ -33,7 +34,7 @@ LocalGridMap::LocalGridMap(ros::NodeHandle& nodeHandle, std::string imageTopicL,
   reconfig_server_.setCallback(f_configcallback_);
 
   // Launch the point cloud publisher.
-  pointCloud_pub_ = nodeHandle_.advertise<sensor_msgs::PointCloud>("/camera/left/point_cloud",1);
+  pointCloud_pub_ = nodeHandle_.advertise<sensor_msgs::PointCloud>(camFrameId_ + "/left/point_cloud",1);
 
   // Launch the GridMap publisher.
   gridMapPublisher_ = nodeHandle_.advertise<grid_map_msgs::GridMap>("grid_map", 1, true);
@@ -100,7 +101,7 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
   cv::Mat tmpL = cv_bridge::toCvShare(msg_left, "mono8")->image;
   cv::Mat tmpR = cv_bridge::toCvShare(msg_right, "mono8")->image;
   cv::Size image_size_calib = cv::Size(tmpL.size().width, tmpL.size().height);
-  cv::Size image_size_out = cv::Size(tmpL.size().width/8, tmpL.size().height/8);
+  cv::Size image_size_out = cv::Size(out_img_width_, out_img_height_);
 
   if (tmpL.empty() || tmpR.empty())
     return;
@@ -137,7 +138,7 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
   // Generate point cloud.
   sensor_msgs::PointCloud pc;
   cvtColor(img_left, img_left_color, CV_GRAY2BGR);
-  pc = algorithm_.processPointCloud(img_left_color, dmap, ncells);
+  pc = algorithm_.processPointCloud(img_left_color, dmap, ncells, camFrameId_);
 
   // Add data to grid map layers.
   ros::Time time = ros::Time::now();
@@ -148,16 +149,27 @@ void LocalGridMap::imageCallback(const sensor_msgs::ImageConstPtr& msg_left, con
     map_.at("layer_"+std::to_string(n), *it) = algorithm_.getElevation(position, pc);
   }
   n++;
-  if(n>9)
+  if(n>=map_cache_number_)
     n=0;
 
-  // Process the mean of every layers.
+  // Process the mean over layers.
+  map_["mean"].setConstant(0.0);
+  map_["variance_square"].setConstant(0.0);
   map_["elevation"].setConstant(0.0);
-  for(int i=0;i<10;i++){
-    map_["elevation"] += map_["layer_"+std::to_string(i)];
+
+  for(int i=0;i<map_cache_number_;i++){
+    map_["mean"] += map_["layer_"+std::to_string(i)];
 
   }
-  map_["elevation"] = 1.0/map_cache_number_ * map_["elevation"];
+  map_["mean"] = 1.0/map_cache_number_ * map_["mean"];
+
+  for(int i=0;i<map_cache_number_;i++){
+    map_["variance_square"] += (map_["layer_"+std::to_string(i)] - map_["mean"]).cwiseProduct(map_["layer_"+std::to_string(i)] - map_["mean"]);
+
+  }
+  map_["variance_square"] = 1.0/(map_cache_number_-1) * map_["variance_square"];
+
+  map_["elevation"] = map_["mean"];
 
   // Publish point cloud.
   pointCloud_pub_.publish(pc);

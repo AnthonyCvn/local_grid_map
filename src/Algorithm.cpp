@@ -84,7 +84,7 @@ void Algorithm::remapImage(cv::Mat& src, cv::Mat& dst, setting side){
   }
 }
 
-sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap, int ncells){
+sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap, int ncells, std::string camera_frame){
 
   cv::Mat V = cv::Mat(4, 1, CV_64FC1);
   cv::Mat pos = cv::Mat(4, 1, CV_64FC1);
@@ -94,7 +94,7 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
   sensor_msgs::PointCloud pc;
 
   ch.name = "rgb";
-  pc.header.frame_id = "camera0";
+  pc.header.frame_id = camera_frame;
   pc.header.stamp = ros::Time::now();
 
 
@@ -103,7 +103,7 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
       int d = dmap.at<uchar>(j,i);
 
       // ignore low disparity point
-      if (d < 1)
+      if (d < 5)
         continue;
 
       // 3D homogenous coordinates of the image point
@@ -146,6 +146,9 @@ sensor_msgs::PointCloud Algorithm::processPointCloud(cv::Mat& img, cv::Mat& dmap
 }
 
 void Algorithm::getTransform(const std::string target_frame, const std::string source_frame){
+
+  listener_.waitForTransform(target_frame, source_frame,
+                             ros::Time(0), ros::Duration(2.0));
   try{
     listener_.lookupTransform(target_frame, source_frame,
                              ros::Time(0), transform_);
