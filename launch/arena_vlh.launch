@@ -1,19 +1,19 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="map_frame_id_north"      default="/map0" />
-  <arg name="calib_file_path_north"   default="$(find local_grid_map)/calibration/SN17101.yml" />
+  <arg name="calib_file_path_north"   default="$(find local_grid_map)/calibration/SN17103.yml" />
   <arg name="cam_frame_id_north"      default="/camera0" />
   <arg name="image_topic_right_north" default="/camera0/camera_capture/stereo/right/image" />
   <arg name="image_topic_left_north"  default="/camera0/camera_capture/stereo/left/image" />
 
   <arg name="map_frame_id_south"      default="/map1" />
-  <arg name="calib_file_path_south"   default="$(find local_grid_map)/calibration/SN17103.yml" />
+  <arg name="calib_file_path_south"   default="$(find local_grid_map)/calibration/SN17101.yml" />
   <arg name="cam_frame_id_south"      default="/camera1" />
   <arg name="image_topic_right_south" default="/camera1/camera_capture/stereo/right/image" />
   <arg name="image_topic_left_south"  default="/camera1/camera_capture/stereo/left/image" />
 
-  <arg name="out_img_height"          default="310" />  
-  <arg name="out_img_width"           default="552" />
+  <arg name="out_img_height"          default="350" />  
+  <arg name="out_img_width"           default="600" />
 
   <!-- tf transformation publisher -->
   <node name="world_tf_broadcaster" pkg="world_tf_broadcaster" type="world_tf_broadcaster.py" />
